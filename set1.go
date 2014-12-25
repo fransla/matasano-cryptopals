@@ -1,12 +1,8 @@
 package main
 
 import (
-	"bufio"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
-	"os"
 )
 
 // Set1Challenge1 performs Matasano crypto challenge #1
@@ -35,21 +31,7 @@ func Set1Challenge3() {
 
 // Set1Challenge4 performs Matasano crypto challenge #4
 func Set1Challenge4() {
-	inFile, _ := os.Open("4.txt")
-	defer inFile.Close()
-	scanner := bufio.NewScanner(inFile)
-	scanner.Split(bufio.ScanLines)
-
-	challenges := [][]byte{}
-	for scanner.Scan() {
-		rawChallenge := scanner.Text()
-		challenge, err := hex.DecodeString(rawChallenge)
-		if err != nil {
-			panic(err)
-		}
-
-		challenges = append(challenges, challenge)
-	}
+	challenges := readHexSliceFile("4.txt")
 
 	var winner []byte
 	var maxScore float64
@@ -80,18 +62,42 @@ func Set1Challenge5() {
 
 // Set1Challenge6 performs Matasano crypto challenge #6
 func Set1Challenge6() {
-	rawSecret, err := ioutil.ReadFile("6.txt")
-	if err != nil {
-		panic(err)
-	}
-
-	secret, err := base64.StdEncoding.DecodeString(string(rawSecret))
-	if err != nil {
-		panic(err)
-	}
+	secret := readBase64File("6.txt")
 
 	key, message := crackRepeatingKeyXor(secret)
 
 	fmt.Println("Key probably is:", string(key))
 	fmt.Println("Message probably is:", string(message))
+}
+
+// Set1Challenge7 performs Matasano crypto challenge #7
+func Set1Challenge7() {
+	key := []byte("YELLOW SUBMARINE")
+	secret := readBase64File("7.txt")
+
+	message := calculateAESECB(secret, key)
+
+	fmt.Println(string(message))
+}
+
+// Set1Challenge8 performs Matasano crypto challenge #8
+func Set1Challenge8() {
+	challenges := readHexSliceFile("8.txt")
+	blockSize := 16
+
+	for lineNo, challenge := range challenges {
+		bytesSeen := map[string]int{}
+
+		for i := 0; i < len(challenge); i += blockSize {
+			current := string(challenge[i : i+16])
+			bytesSeen[current]++
+		}
+
+		for _, count := range bytesSeen {
+			if count > 1 {
+				fmt.Println("Line", lineNo, "is probably ECB (had a block repeated", count, "times)")
+				return
+			}
+		}
+	}
 }

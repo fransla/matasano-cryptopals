@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"encoding/base64"
 	"encoding/hex"
+	"io/ioutil"
+	"os"
 )
 
 // tuple is a container for a value/sort-item pair
@@ -73,4 +76,38 @@ func englishScore(str []byte) float64 {
 	}
 
 	return letterCount / nonLetterCount
+}
+
+func readBase64File(filename string) []byte {
+	rawContents, err := ioutil.ReadFile(filename)
+	if err != nil {
+		panic(err)
+	}
+
+	contents, err := base64.StdEncoding.DecodeString(string(rawContents))
+	if err != nil {
+		panic(err)
+	}
+
+	return contents
+}
+
+func readHexSliceFile(filename string) [][]byte {
+	inFile, _ := os.Open(filename)
+	defer inFile.Close()
+	scanner := bufio.NewScanner(inFile)
+	scanner.Split(bufio.ScanLines)
+
+	contents := [][]byte{}
+	for scanner.Scan() {
+		rawContent := scanner.Text()
+		content, err := hex.DecodeString(rawContent)
+		if err != nil {
+			panic(err)
+		}
+
+		contents = append(contents, content)
+	}
+
+	return contents
 }

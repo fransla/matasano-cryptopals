@@ -38,6 +38,10 @@ func main() {
 			Set1Challenge5()
 		case 6:
 			Set1Challenge6()
+		case 7:
+			Set1Challenge7()
+		case 8:
+			Set1Challenge8()
 		default:
 			panic("Unknown challenge")
 		}

@@ -1,6 +1,9 @@
 package main
 
-import "sort"
+import (
+	"crypto/aes"
+	"sort"
+)
 
 // crackSingleByteXor finds the probably key/message for a secret encrypted with the single byte XOR scheme
 func crackSingleByteXor(secret []byte) (byte, []byte) {
@@ -69,6 +72,22 @@ func calculateSingleByteXor(secret []byte, other byte) []byte {
 	}
 
 	return newBytes
+}
+
+func calculateAESECB(secret []byte, key []byte) []byte {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+
+	plaintext := make([]byte, 0, len(secret))
+	for i := 0; i < len(secret); i += 16 {
+		decodedBlock := make([]byte, 16)
+		block.Decrypt(decodedBlock, secret[i:i+16])
+		plaintext = append(plaintext, decodedBlock...)
+	}
+
+	return plaintext
 }
 
 // transposeSecret treats the secret as a keyLength X y matrix and transposes it
