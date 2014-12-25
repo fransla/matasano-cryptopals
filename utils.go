@@ -26,10 +26,12 @@ func (l tupleSortList) Swap(i int, j int) { l[i], l[j] = l[j], l[i] }
 // Less compares two slice elements to implement the sorting interface
 func (l tupleSortList) Less(i int, j int) bool { return l[i].measurable < l[j].measurable }
 
+// hexToBase64 converts a string with hex encoding to one with base64 encoding
 func hexToBase64(hexString string) string {
 	return base64.StdEncoding.EncodeToString(hexToBytes(hexString))
 }
 
+// hexToBytes decodes a string with hex encoding and returns a byte slice for the underlying data
 func hexToBytes(hexString string) []byte {
 	bytes, err := hex.DecodeString(hexString)
 	if err != nil {
@@ -37,7 +39,6 @@ func hexToBytes(hexString string) []byte {
 	}
 
 	return bytes
-
 }
 
 // hammingDistance calculates the number of differing bits between two byte slices
@@ -62,6 +63,8 @@ func numberOfBitsSet(integer int) int {
 	return count
 }
 
+// englishScore attempts to score how "english-like" a byte slice is
+// by taking a ratio of common word characters to non-common ones
 func englishScore(str []byte) float64 {
 	letterCount := float64(0.1)
 	nonLetterCount := float64(1)

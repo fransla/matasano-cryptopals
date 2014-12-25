@@ -6,46 +6,40 @@ import (
 )
 
 func main() {
-	set := 1
-	challenge := 1
 	var err error
+	challenge := 1
 
-	argCount := len(os.Args)
-	if argCount > 1 {
-		set, err = strconv.Atoi(os.Args[1])
-		if err != nil {
-			panic(err)
-		}
-	}
-	if argCount > 2 {
-		challenge, err = strconv.Atoi(os.Args[2])
+	if len(os.Args) > 1 {
+		challenge, err = strconv.Atoi(os.Args[1])
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	if set == 1 {
-		switch challenge {
-		case 1:
-			Set1Challenge1()
-		case 2:
-			Set1Challenge2()
-		case 3:
-			Set1Challenge3()
-		case 4:
-			Set1Challenge4()
-		case 5:
-			Set1Challenge5()
-		case 6:
-			Set1Challenge6()
-		case 7:
-			Set1Challenge7()
-		case 8:
-			Set1Challenge8()
-		default:
-			panic("Unknown challenge")
-		}
-	} else {
-		panic("Unknown set")
+	switch {
+	case challenge == 1:
+		Challenge1()
+	case challenge == 2:
+		Challenge2()
+	case challenge == 3:
+		Challenge3()
+	case challenge == 4:
+		Challenge4()
+	case challenge == 5:
+		Challenge5()
+	case challenge == 6:
+		Challenge6()
+	case challenge == 7:
+		Challenge7()
+	case challenge == 8:
+		Challenge8()
+
+	case challenge == 9:
+		Challenge9()
+	case challenge == 10:
+		Challenge10()
+
+	default:
+		panic("Unknown set or challenge")
 	}
 }

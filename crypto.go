@@ -74,7 +74,23 @@ func calculateSingleByteXor(secret []byte, other byte) []byte {
 	return newBytes
 }
 
-func calculateAESECB(secret []byte, key []byte) []byte {
+func encryptAESECB(message []byte, key []byte) []byte {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+
+	cipher := make([]byte, 0, len(message))
+	for i := 0; i < len(message); i += 16 {
+		cipherBlock := make([]byte, 16)
+		block.Encrypt(cipherBlock, message[i:i+16])
+		cipher = append(cipher, cipherBlock...)
+	}
+
+	return cipher
+}
+
+func decryptAESECB(secret []byte, key []byte) []byte {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		panic(err)
@@ -85,6 +101,37 @@ func calculateAESECB(secret []byte, key []byte) []byte {
 		decodedBlock := make([]byte, 16)
 		block.Decrypt(decodedBlock, secret[i:i+16])
 		plaintext = append(plaintext, decodedBlock...)
+	}
+
+	return plaintext
+}
+
+func encryptAESCBC(message []byte, iv []byte, key []byte) []byte {
+	blockSize := len(key)
+	cipher := []byte{}
+
+	for i := 0; i < len(message); i += blockSize {
+		plainBlock := message[i : i+blockSize]
+		if len(plainBlock) < blockSize {
+			plainBlock = pks7Pad(plainBlock, blockSize)
+		}
+
+		cipherBlock := encryptAESECB(calculateReapeatingXor(plainBlock, iv), key)
+		cipher = append(cipher, cipherBlock...)
+		iv = cipherBlock
+	}
+
+	return cipher
+}
+
+func decryptAESCBC(secret []byte, iv []byte, key []byte) []byte {
+	blockSize := len(key)
+	plaintext := []byte{}
+
+	for i := 0; i < len(secret); i += blockSize {
+		cipherBlock := secret[i : i+blockSize]
+		plaintext = append(plaintext, calculateReapeatingXor(decryptAESECB(cipherBlock, key), iv)...)
+		iv = cipherBlock
 	}
 
 	return plaintext
@@ -127,4 +174,12 @@ func findProbableKeyLengths(data []byte, keyCount int) []int {
 	}
 
 	return lengths
+}
+
+func pks7Pad(data []byte, blockSize int) []byte {
+	paddedData := data
+	for i := (blockSize - (len(data) % blockSize)); i > 0; i-- {
+		paddedData = append(paddedData, '\x04')
+	}
+	return paddedData
 }
