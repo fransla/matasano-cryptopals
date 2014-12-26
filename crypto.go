@@ -296,6 +296,38 @@ func pks7Pad(data []byte, blockSize int) []byte {
 	return paddedData
 }
 
+func pks7Unpad(data []byte) []byte {
+	if !isPks7Padded(data) {
+		return data
+	}
+
+	dataLength := len(data)
+	padLength := int(data[dataLength-1])
+
+	return data[0 : dataLength-padLength]
+}
+
+func isPks7Padded(data []byte) bool {
+	dataLength := len(data)
+	if dataLength == 0 {
+		return false
+	}
+
+	padLength := int(data[dataLength-1])
+
+	if dataLength < padLength {
+		return false
+	}
+
+	for i := 1; i < padLength-1; i++ {
+		if int(data[dataLength-i]) != padLength {
+			return false
+		}
+	}
+
+	return true
+}
+
 func buildECBTable(oracle cipherFunc, prefix []byte, blockSize int) map[string]byte {
 	table := map[string]byte{}
 	blockIdx := len(prefix) / blockSize
