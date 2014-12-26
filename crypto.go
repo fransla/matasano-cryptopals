@@ -75,15 +75,17 @@ func calculateSingleByteXor(secret []byte, other byte) []byte {
 }
 
 func encryptAESECB(message []byte, key []byte) []byte {
+	blockSize := 16
+
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		panic(err)
 	}
 
 	cipher := make([]byte, 0, len(message))
-	for i := 0; i < len(message); i += 16 {
-		cipherBlock := make([]byte, 16)
-		block.Encrypt(cipherBlock, message[i:i+16])
+	for i := 0; i < len(message); i += blockSize {
+		cipherBlock := make([]byte, blockSize)
+		block.Encrypt(cipherBlock, message[i:i+blockSize])
 		cipher = append(cipher, cipherBlock...)
 	}
 
@@ -137,6 +139,22 @@ func decryptAESCBC(secret []byte, iv []byte, key []byte) []byte {
 	return plaintext
 }
 
+func isAESECB(bytes []byte, blockSize int) bool {
+	seenBytes := map[string]int{}
+	for i := 0; i < len(bytes); i += blockSize {
+		seenBytes[string(bytes[i:i+blockSize])]++
+	}
+
+	isECB := false
+	for _, count := range seenBytes {
+		if count > 1 {
+			isECB = true
+		}
+	}
+
+	return isECB
+}
+
 // transposeSecret treats the secret as a keyLength X y matrix and transposes it
 func transposeSecret(secret []byte, keyLength int) [][]byte {
 	transposed := make([][]byte, keyLength)
@@ -150,6 +168,52 @@ func transposeSecret(secret []byte, keyLength int) [][]byte {
 	}
 
 	return transposed
+}
+
+func detectECBBlockSize(oracle cipherFunc) int {
+	// Number of repeating chunks to look for
+	repeatCount := 17
+
+	for blockSizeAttempt := 1; blockSizeAttempt < 128; blockSizeAttempt++ {
+		plaintext := make([]byte, blockSizeAttempt)
+		for i := 0; i < blockSizeAttempt; i++ {
+			plaintext[i] = 'A'
+		}
+
+		newPlaintext := make([]byte, 0, blockSizeAttempt*20)
+		for i := 0; i < repeatCount; i++ {
+			newPlaintext = append(newPlaintext, plaintext...)
+		}
+
+		ciphertext := oracle(newPlaintext)
+
+		// Find maximum number of repeating blocks in the cipertext
+		count := 1
+		maxCount := 1
+		var prev []byte
+		for i := 0; i < len(ciphertext); i += blockSizeAttempt {
+			chunk := ciphertext[i : i+blockSizeAttempt]
+
+			if slicesAreEqual(chunk, prev) {
+				count++
+			} else {
+				count = 1
+			}
+
+			if count > maxCount {
+				maxCount = count
+			}
+
+			prev = chunk
+		}
+
+		// We found the correct number (it may not be a perfect boundary so we'll only find repleatCount-1)
+		if maxCount == repeatCount || maxCount == repeatCount-1 {
+			return blockSizeAttempt
+		}
+	}
+
+	return 0
 }
 
 // findProbableKeyLengths returns the `keyCount` most likely key lengths
@@ -182,4 +246,18 @@ func pks7Pad(data []byte, blockSize int) []byte {
 		paddedData = append(paddedData, '\x04')
 	}
 	return paddedData
+}
+
+func buildECBTable(oracle cipherFunc, prefix []byte, blockSize int) map[string]byte {
+	table := map[string]byte{}
+	blockIdx := len(prefix) / blockSize
+
+	for i := 0; i < 256; i++ {
+		b := byte(i)
+		cipher := oracle(append(prefix, b))
+		block := cipher[blockIdx*blockSize : (blockIdx+1)*blockSize]
+		table[string(block)] = b
+	}
+
+	return table
 }

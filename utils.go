@@ -2,11 +2,14 @@ package main
 
 import (
 	"bufio"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"io/ioutil"
 	"os"
 )
+
+type cipherFunc func([]byte) []byte
 
 // tuple is a container for a value/sort-item pair
 type tuple struct {
@@ -113,4 +116,76 @@ func readHexSliceFile(filename string) [][]byte {
 	}
 
 	return contents
+}
+
+func randomAESCipher(message []byte, blockSize int) []byte {
+	key := make([]byte, blockSize)
+	fakePrepend := make([]byte, 5)
+	fakeAppend := make([]byte, 5)
+
+	_, err := rand.Read(key)
+	if err != nil {
+		panic(err)
+	}
+	_, err = rand.Read(fakePrepend)
+	if err != nil {
+		panic(err)
+	}
+	_, err = rand.Read(fakeAppend)
+	if err != nil {
+		panic(err)
+	}
+
+	newMessage := append(fakePrepend, message...)
+	newMessage = append(newMessage, fakeAppend...)
+
+	if (key[0] & 1) > 0 {
+		iv := make([]byte, blockSize)
+		_, err = rand.Read(iv)
+		if err != nil {
+			panic(err)
+		}
+
+		return encryptAESCBC(newMessage, iv, key)
+	}
+
+	return encryptAESECB(newMessage, key)
+}
+
+var unknownECBCipherKey []byte
+
+func unknownECBCipher(message []byte) []byte {
+	if unknownECBCipherKey == nil {
+		unknownECBCipherKey = make([]byte, 16)
+		_, err := rand.Read(unknownECBCipherKey)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	unknownText, err := base64.StdEncoding.DecodeString("Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK")
+	if err != nil {
+		panic(err)
+	}
+
+	message = append(message, unknownText...)
+	return encryptAESECB(message, unknownECBCipherKey)
+}
+
+func slicesAreEqual(a []byte, b []byte) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil || len(a) != len(b) {
+		return false
+	}
+
+	for j := 0; j < len(a); j++ {
+		if a[j] != b[j] {
+			return false
+		}
+	}
+
+	return true
 }

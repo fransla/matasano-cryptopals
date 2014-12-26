@@ -17,6 +17,7 @@ func main() {
 	}
 
 	switch {
+	// Set 1
 	case challenge == 1:
 		Challenge1()
 	case challenge == 2:
@@ -34,10 +35,17 @@ func main() {
 	case challenge == 8:
 		Challenge8()
 
+	// Set 2
 	case challenge == 9:
 		Challenge9()
 	case challenge == 10:
 		Challenge10()
+	case challenge == 11:
+		Challenge11()
+	case challenge == 12:
+		Challenge12()
+	case challenge == 13:
+		Challenge13()
 
 	default:
 		panic("Unknown set or challenge")

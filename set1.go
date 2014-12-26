@@ -86,18 +86,9 @@ func Challenge8() {
 	blockSize := 16
 
 	for lineNo, challenge := range challenges {
-		bytesSeen := map[string]int{}
-
-		for i := 0; i < len(challenge); i += blockSize {
-			current := string(challenge[i : i+16])
-			bytesSeen[current]++
-		}
-
-		for _, count := range bytesSeen {
-			if count > 1 {
-				fmt.Println("Line", lineNo, "is probably ECB (had a block repeated", count, "times)")
-				return
-			}
+		if isAESECB(challenge, blockSize) {
+			fmt.Println("Line", lineNo, "is probably ECB")
+			return
 		}
 	}
 }
