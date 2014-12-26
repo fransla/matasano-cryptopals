@@ -46,6 +46,8 @@ func main() {
 		Challenge12()
 	case challenge == 13:
 		Challenge13()
+	case challenge == 14:
+		Challenge14()
 
 	default:
 		panic("Unknown set or challenge")

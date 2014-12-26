@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/aes"
-	"fmt"
 	"sort"
 )
 
@@ -56,39 +55,41 @@ func crackRepeatingKeyXor(secret []byte) ([]byte, []byte) {
 }
 
 func crackECB(oracle cipherFunc) []byte {
-	// Determine the length of the secret we want to find, and for each byte construct
-	// a table with each possible byte value right aligned in a padded block. Compare
-	// it with a cipher of 1 less than blockSize to determine leaked byte
-	// Repeat with prefix equal to padding + known text so far until we are done
-	secretLength := len(oracle([]byte{}))
-	known := make([]byte, 0, secretLength)
-
-	// We want to target what will eventually be the final block of the secret
-	// The last byte of this block is where we force the next secret byte
 	blockSize := detectECBBlockSize(oracle)
-	targetBlockIdx := (secretLength / blockSize)
+
+	// Determine an upper bound on our secret size by encrypted an empty message
+	secretLength := len(oracle([]byte{}))
+
+	// A slice to hold our leaked secret bytes
+	known := make([]byte, 0, secretLength)
 
 	// We want to force the next byte to read into the last byte postition
 	// of our poisoned block, so start with the index of the end of the last
 	// block with our target data in it, minus one so it leaks the next byte
-	prefixStartLength := ((targetBlockIdx) * blockSize) - 1
-
-	for i := prefixStartLength; i > 0; i-- {
+	for i := secretLength - 1; i > 0; i-- {
+		// Create a known prefix that is 1 byte shorter than the block length
+		// (i == len(known)-1)
 		buffer := make([]byte, i)
 		prefix := append(buffer, known...)
 
+		// Create a table of each possible byte, mapped by the cipher of that
+		// byte appended to our prefix
 		table := buildECBTable(oracle, prefix, blockSize)
 
+		// Send our buffer to the oracle which will append the secret text
+		// and encrypt it. buffer has been forged such that some block of the cipher
+		// should be in our known table
 		cipher := oracle(buffer)
-		block := cipher[(targetBlockIdx-1)*blockSize : (targetBlockIdx)*blockSize]
 
-		b, ok := table[string(block)]
-		if !ok {
-			fmt.Println("Unknown cipher in table; stopping")
-			break
+		// Scan the cipher for blocks in our lookup table. If we find one
+		// we can append it to our known slice
+		for j := 0; j < len(cipher); j += blockSize {
+			b, ok := table[string(cipher[j:j+blockSize])]
+			if ok && b != byte(0) {
+				known = append(known, b)
+				break
+			}
 		}
-
-		known = append(known, b)
 	}
 
 	return known
@@ -290,7 +291,6 @@ func pks7Pad(data []byte, blockSize int) []byte {
 	paddedData := data
 	padSize := blockSize - (len(data) % blockSize)
 	for i := padSize; i > 0; i-- {
-		// paddedData = append(paddedData, '?')
 		paddedData = append(paddedData, byte(padSize))
 	}
 	return paddedData
