@@ -2,10 +2,11 @@ package main
 
 import (
 	"bufio"
-	"crypto/rand"
+	crand "crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"io/ioutil"
+	"math/rand"
 	"os"
 )
 
@@ -123,15 +124,15 @@ func randomAESCipher(message []byte, blockSize int) []byte {
 	fakePrepend := make([]byte, 5)
 	fakeAppend := make([]byte, 5)
 
-	_, err := rand.Read(key)
+	_, err := crand.Read(key)
 	if err != nil {
 		panic(err)
 	}
-	_, err = rand.Read(fakePrepend)
+	_, err = crand.Read(fakePrepend)
 	if err != nil {
 		panic(err)
 	}
-	_, err = rand.Read(fakeAppend)
+	_, err = crand.Read(fakeAppend)
 	if err != nil {
 		panic(err)
 	}
@@ -141,7 +142,7 @@ func randomAESCipher(message []byte, blockSize int) []byte {
 
 	if (key[0] & 1) > 0 {
 		iv := make([]byte, blockSize)
-		_, err = rand.Read(iv)
+		_, err = crand.Read(iv)
 		if err != nil {
 			panic(err)
 		}
@@ -153,22 +154,43 @@ func randomAESCipher(message []byte, blockSize int) []byte {
 }
 
 var unknownECBCipherKey []byte
+var unknownECBCipherSecret []byte
 
-func unknownECBCipher(message []byte) []byte {
+func prepareUnknownECBCiphers() {
+	var err error
+
 	if unknownECBCipherKey == nil {
 		unknownECBCipherKey = make([]byte, 16)
-		_, err := rand.Read(unknownECBCipherKey)
+		_, err := crand.Read(unknownECBCipherKey)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	unknownText, err := base64.StdEncoding.DecodeString("Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK")
+	unknownECBCipherSecret, err = base64.StdEncoding.DecodeString("Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func unknownECBCipher(message []byte) []byte {
+	prepareUnknownECBCiphers()
+
+	message = append(message, unknownECBCipherSecret...)
+	return encryptAESECB(message, unknownECBCipherKey)
+}
+
+func unknownECBCipherWithPrepend(message []byte) []byte {
+	prepareUnknownECBCiphers()
+
+	randomPrefix := make([]byte, rand.Intn(128))
+	_, err := crand.Read(randomPrefix)
 	if err != nil {
 		panic(err)
 	}
 
-	message = append(message, unknownText...)
+	message = append(randomPrefix, message...)
+	message = append(message, unknownECBCipherSecret...)
 	return encryptAESECB(message, unknownECBCipherKey)
 }
 

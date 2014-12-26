@@ -54,6 +54,35 @@ func crackRepeatingKeyXor(secret []byte) ([]byte, []byte) {
 	return keys[bestLength], messages[bestLength]
 }
 
+func crackECB(oracle cipherFunc) []byte {
+	blockSize := detectECBBlockSize(oracle)
+	// Determine the length of the secret we want to find, and for each byte construct
+	// a table with each possible byte value right aligned in a padded block. Compare
+	// it with a cipher of 1 less than blockSize to determine leaked byte
+	// Repeat with prefix equal to padding + known text so far until we are done
+	secretLength := len(oracle([]byte{}))
+	known := make([]byte, 0, secretLength)
+	targetBlockIdx := (secretLength / blockSize) - 1
+	for i := secretLength - 1; i > 0; i-- {
+		buffer := make([]byte, i)
+		prefix := append(buffer, known...)
+
+		table := buildECBTable(oracle, prefix, blockSize)
+
+		cipher := oracle(buffer)
+		block := cipher[targetBlockIdx*blockSize : (targetBlockIdx+1)*blockSize]
+
+		b, ok := table[string(block)]
+		if !ok {
+			panic("Unknown cipher in table")
+		}
+
+		known = append(known, b)
+	}
+
+	return known
+}
+
 // calculateReapeatingXor decrypts the secret with the given key using the repeating xor algorithm
 func calculateReapeatingXor(secret []byte, key []byte) []byte {
 	message := make([]byte, len(secret))

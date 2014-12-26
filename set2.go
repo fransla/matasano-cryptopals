@@ -65,12 +65,9 @@ func Challenge11() {
 
 // Challenge12 performs Matasano crypto challenge #12
 func Challenge12() {
-	oracle := unknownECBCipher
-
-	blockSize := detectECBBlockSize(oracle)
-
-	ciphertext := oracle([]byte("YELLOW SUBMARINEYELLOW SUBMARINEYELLOW SUBMARINE"))
-
+	// Verify it's ECB
+	ciphertext := unknownECBCipher([]byte("YELLOW SUBMARINEYELLOW SUBMARINEYELLOW SUBMARINE"))
+	blockSize := detectECBBlockSize(unknownECBCipher)
 	if isAESECB(ciphertext, blockSize) {
 		fmt.Println("Oracle function is ECB")
 	} else {
@@ -78,39 +75,17 @@ func Challenge12() {
 		return
 	}
 
-	// Determine the length of the secret we want to find, and for each byte construct
-	// a table with each possible byte value right aligned in a padded block. Compare
-	// it with a cipher of 1 less than blockSize to determine leaked byte
-	// Repeat with prefix equal to padding + known text so far until we are done
-	secretLength := len(oracle([]byte{}))
-	known := make([]byte, 0, secretLength)
-	targetBlockIdx := (secretLength / blockSize) - 1
-	for i := secretLength - 1; i > 0; i-- {
-		buffer := make([]byte, i)
-		prefix := append(buffer, known...)
-
-		table := buildECBTable(oracle, prefix, blockSize)
-
-		cipher := oracle(buffer)
-		block := cipher[targetBlockIdx*blockSize : (targetBlockIdx+1)*blockSize]
-
-		b, ok := table[string(block)]
-		if !ok {
-			panic("Unknown cipher in table")
-		}
-
-		known = append(known, b)
-	}
-
-	fmt.Println(string(known))
+	// Crack it
+	fmt.Println(string(crackECB(unknownECBCipher)))
 }
 
 // Challenge13 performs Matasano crypto challenge #13
 func Challenge13() {
 	// oracle := unknownECBCipherWithPrepend
 	// message := []byte("YELLOW SUBMARINE")
-	//
+
 	// fmt.Println(oracle(message))
 	// fmt.Println(oracle(message))
 	// fmt.Println(oracle(message))
+	// fmt.Println(string(crackECB(unknownECBCipherWithPrepend)))
 }
