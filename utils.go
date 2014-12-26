@@ -177,6 +177,8 @@ func unknownECBCipher(message []byte) []byte {
 	prepareUnknownECBCiphers()
 
 	message = append(message, unknownECBCipherSecret...)
+	message = pks7Pad(message, 16)
+
 	return encryptAESECB(message, unknownECBCipherKey)
 }
 

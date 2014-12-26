@@ -221,6 +221,12 @@ func detectECBBlockSize(oracle cipherFunc) int {
 		maxCount := 1
 		var prev []byte
 		for i := 0; i < len(ciphertext); i += blockSizeAttempt {
+			// Ciphertext should be an even multiple of the block size so if
+			// this isn't we can just skip it
+			if (len(ciphertext) % blockSizeAttempt) > 0 {
+				continue
+			}
+
 			chunk := ciphertext[i : i+blockSizeAttempt]
 
 			if slicesAreEqual(chunk, prev) {
