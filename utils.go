@@ -177,14 +177,16 @@ func unknownECBCipher(message []byte) []byte {
 	prepareUnknownECBCiphers()
 
 	message = append(message, unknownECBCipherSecret...)
+	// fmt.Println(len(message))
+	// fmt.Println("s", len(unknownECBCipherSecret))
 	message = pks7Pad(message, 16)
+
+	// fmt.Println("msg:", message)
 
 	return encryptAESECB(message, unknownECBCipherKey)
 }
 
 func unknownECBCipherWithPrepend(message []byte) []byte {
-	prepareUnknownECBCiphers()
-
 	randomPrefix := make([]byte, rand.Intn(128))
 	_, err := crand.Read(randomPrefix)
 	if err != nil {
@@ -192,8 +194,8 @@ func unknownECBCipherWithPrepend(message []byte) []byte {
 	}
 
 	message = append(randomPrefix, message...)
-	message = append(message, unknownECBCipherSecret...)
-	return encryptAESECB(message, unknownECBCipherKey)
+
+	return unknownECBCipher(message)
 }
 
 func slicesAreEqual(a []byte, b []byte) bool {

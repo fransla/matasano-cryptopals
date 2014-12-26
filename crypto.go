@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/aes"
+	"fmt"
 	"sort"
 )
 
@@ -55,26 +56,36 @@ func crackRepeatingKeyXor(secret []byte) ([]byte, []byte) {
 }
 
 func crackECB(oracle cipherFunc) []byte {
-	blockSize := detectECBBlockSize(oracle)
 	// Determine the length of the secret we want to find, and for each byte construct
 	// a table with each possible byte value right aligned in a padded block. Compare
 	// it with a cipher of 1 less than blockSize to determine leaked byte
 	// Repeat with prefix equal to padding + known text so far until we are done
 	secretLength := len(oracle([]byte{}))
 	known := make([]byte, 0, secretLength)
-	targetBlockIdx := (secretLength / blockSize) - 1
-	for i := secretLength - 1; i > 0; i-- {
+
+	// We want to target what will eventually be the final block of the secret
+	// The last byte of this block is where we force the next secret byte
+	blockSize := detectECBBlockSize(oracle)
+	targetBlockIdx := (secretLength / blockSize)
+
+	// We want to force the next byte to read into the last byte postition
+	// of our poisoned block, so start with the index of the end of the last
+	// block with our target data in it, minus one so it leaks the next byte
+	prefixStartLength := ((targetBlockIdx) * blockSize) - 1
+
+	for i := prefixStartLength; i > 0; i-- {
 		buffer := make([]byte, i)
 		prefix := append(buffer, known...)
 
 		table := buildECBTable(oracle, prefix, blockSize)
 
 		cipher := oracle(buffer)
-		block := cipher[targetBlockIdx*blockSize : (targetBlockIdx+1)*blockSize]
+		block := cipher[(targetBlockIdx-1)*blockSize : (targetBlockIdx)*blockSize]
 
 		b, ok := table[string(block)]
 		if !ok {
-			panic("Unknown cipher in table")
+			fmt.Println("Unknown cipher in table; stopping")
+			break
 		}
 
 		known = append(known, b)
@@ -277,8 +288,10 @@ func findProbableKeyLengths(data []byte, keyCount int) []int {
 
 func pks7Pad(data []byte, blockSize int) []byte {
 	paddedData := data
-	for i := (blockSize - (len(data) % blockSize)); i > 0; i-- {
-		paddedData = append(paddedData, '\x04')
+	padSize := blockSize - (len(data) % blockSize)
+	for i := padSize; i > 0; i-- {
+		// paddedData = append(paddedData, '?')
+		paddedData = append(paddedData, byte(padSize))
 	}
 	return paddedData
 }
