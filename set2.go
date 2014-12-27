@@ -66,8 +66,8 @@ func Challenge11() {
 // Challenge12 performs Matasano crypto challenge #12
 func Challenge12() {
 	// Verify it's ECB
-	ciphertext := unknownECBCipher([]byte("YELLOW SUBMARINEYELLOW SUBMARINEYELLOW SUBMARINE"))
-	blockSize := detectECBBlockSize(unknownECBCipher)
+	ciphertext := ecbCipherOracle([]byte("YELLOW SUBMARINEYELLOW SUBMARINEYELLOW SUBMARINE"))
+	blockSize := detectECBBlockSize(ecbCipherOracle)
 	if isAESECB(ciphertext, blockSize) {
 		fmt.Println("Oracle function is ECB")
 	} else {
@@ -76,7 +76,7 @@ func Challenge12() {
 	}
 
 	// Crack it
-	fmt.Println(string(crackECB(unknownECBCipher)))
+	fmt.Println(string(crackECB(ecbCipherOracle)))
 }
 
 // Challenge13 performs Matasano crypto challenge #13
@@ -85,13 +85,21 @@ func Challenge13() {
 
 // Challenge14 performs Matasano crypto challenge #14
 func Challenge14() {
-	oracle := unknownECBCipherWithPrepend
-	// oracle := unknownECBCipher
-	// message := []byte("YELLOW SUBMARINE")
-
-	// fmt.Println(oracle(message))
-	// fmt.Println(oracle(message))
-	// fmt.Println(oracle(message))
+	oracle := ecbCipherWithPrependOrcale
 	fmt.Println(string(crackECB(oracle)))
 
+}
+
+// Challenge15 performs Matasano crypto challenge #15
+func Challenge15() {
+	tests := map[string]bool{
+		"ICE ICE BABY\x04\x04\x04\x04": true,
+		"ICE ICE BABY\x05\x05\x05\x05": false,
+		"ICE ICE BABY\x01\x02\x03\x04": false,
+	}
+
+	for str, shouldBeValid := range tests {
+		isValid := isPks7Padded([]byte(str))
+		fmt.Println("Should be", shouldBeValid, ":", isValid)
+	}
 }

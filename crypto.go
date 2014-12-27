@@ -2,10 +2,16 @@ package main
 
 import (
 	"crypto/aes"
+	crand "crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"math/rand"
 	"sort"
 )
+
+//
+// Cracking routines
+//
 
 // crackSingleByteXor finds the probably key/message for a secret encrypted with the single byte XOR scheme
 func crackSingleByteXor(secret []byte) (byte, []byte) {
@@ -210,6 +216,10 @@ func findMostCommonBlock(bytes []byte, blockSize int) ([]byte, int) {
 	return maxChunk, maxCount
 }
 
+//
+// Cipher calculators
+//
+
 // calculateReapeatingXor decrypts the secret with the given key using the repeating xor algorithm
 func calculateReapeatingXor(secret []byte, key []byte) []byte {
 	message := make([]byte, len(secret))
@@ -350,6 +360,10 @@ func findProbableKeyLengths(data []byte, keyCount int) []int {
 	return lengths
 }
 
+//
+// PKS7
+//
+
 func pks7Pad(data []byte, blockSize int) []byte {
 	paddedData := data
 	padSize := blockSize - (len(data) % blockSize)
@@ -382,11 +396,56 @@ func isPks7Padded(data []byte) bool {
 		return false
 	}
 
-	for i := 1; i < padLength-1; i++ {
-		if int(data[dataLength-i]) != padLength {
+	for i := 0; i < padLength; i++ {
+		if int(data[dataLength-i-1]) != padLength {
 			return false
 		}
 	}
 
 	return true
+}
+
+func validatePks7Padded(data []byte) {
+	if !isPks7Padded(data) {
+		panic("Data must be pks7 padded")
+	}
+}
+
+//
+// Oracles
+//
+var unknownECBOracleKey []byte
+var unknownECBOracleSecret []byte
+
+func ecbCipherOracle(message []byte) []byte {
+	var err error
+
+	if unknownECBOracleKey == nil {
+		unknownECBOracleKey = make([]byte, 16)
+		_, err := crand.Read(unknownECBOracleKey)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	unknownECBOracleSecret, err = base64.StdEncoding.DecodeString("Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK")
+	if err != nil {
+		panic(err)
+	}
+	message = append(message, unknownECBOracleSecret...)
+	message = pks7Pad(message, 16)
+
+	return encryptAESECB(message, unknownECBOracleKey)
+}
+
+func ecbCipherWithPrependOrcale(message []byte) []byte {
+	randomPrefix := make([]byte, rand.Intn(128))
+	_, err := crand.Read(randomPrefix)
+	if err != nil {
+		panic(err)
+	}
+
+	message = append(randomPrefix, message...)
+
+	return ecbCipherOracle(message)
 }

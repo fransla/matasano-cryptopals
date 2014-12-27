@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"io/ioutil"
-	"math/rand"
 	"os"
 )
 
@@ -151,54 +150,6 @@ func randomAESCipher(message []byte, blockSize int) []byte {
 	}
 
 	return encryptAESECB(newMessage, key)
-}
-
-var unknownECBCipherKey []byte
-var unknownECBCipherSecret []byte
-
-func prepareUnknownECBCiphers() {
-	var err error
-
-	if unknownECBCipherKey == nil {
-		unknownECBCipherKey = make([]byte, 16)
-		_, err := crand.Read(unknownECBCipherKey)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	unknownECBCipherSecret, err = base64.StdEncoding.DecodeString("Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK")
-	if err != nil {
-		panic(err)
-	}
-}
-
-func unknownECBCipher(message []byte) []byte {
-	prepareUnknownECBCiphers()
-
-	// message = append([]byte{0}, message...)
-	message = append(message, unknownECBCipherSecret...)
-	// fmt.Println(len(message))
-	// fmt.Println("s", len(unknownECBCipherSecret))
-	message = pks7Pad(message, 16)
-
-	// fmt.Println(message[0:30])
-
-	// fmt.Println("msg:", message)
-
-	return encryptAESECB(message, unknownECBCipherKey)
-}
-
-func unknownECBCipherWithPrepend(message []byte) []byte {
-	randomPrefix := make([]byte, rand.Intn(128))
-	_, err := crand.Read(randomPrefix)
-	if err != nil {
-		panic(err)
-	}
-
-	message = append(randomPrefix, message...)
-
-	return unknownECBCipher(message)
 }
 
 func slicesAreEqual(a []byte, b []byte) bool {
