@@ -31,7 +31,7 @@ func Challenge3() {
 
 // Challenge4 performs Matasano crypto challenge #4
 func Challenge4() {
-	challenges := readHexSliceFile("4.txt")
+	challenges := readHexSliceFile("data/4.txt")
 
 	var winner []byte
 	var maxScore float64
@@ -62,7 +62,7 @@ func Challenge5() {
 
 // Challenge6 performs Matasano crypto challenge #6
 func Challenge6() {
-	secret := readBase64File("6.txt")
+	secret := readBase64File("data/6.txt")
 
 	key, message := crackRepeatingKeyXor(secret)
 
@@ -73,7 +73,7 @@ func Challenge6() {
 // Challenge7 performs Matasano crypto challenge #7
 func Challenge7() {
 	key := []byte("YELLOW SUBMARINE")
-	secret := readBase64File("7.txt")
+	secret := readBase64File("data/7.txt")
 
 	message := decryptAESECB(secret, key)
 
@@ -82,7 +82,7 @@ func Challenge7() {
 
 // Challenge8 performs Matasano crypto challenge #8
 func Challenge8() {
-	challenges := readHexSliceFile("8.txt")
+	challenges := readHexSliceFile("data/8.txt")
 	blockSize := 16
 
 	for lineNo, challenge := range challenges {

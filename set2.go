@@ -25,7 +25,7 @@ func Challenge10() {
 	fmt.Println(string(newMessage))
 
 	// Matasano test
-	secret := readBase64File("10.txt")
+	secret := readBase64File("data/10.txt")
 
 	key = []byte("YELLOW SUBMARINE")
 	blockSize = len(key)
