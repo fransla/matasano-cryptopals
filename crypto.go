@@ -10,8 +10,17 @@ import (
 )
 
 //
-// Cracking routines
+// XOR
 //
+
+// calculateXor decrypts the secret with the given key using the repeating xor algorithm
+func calculateXor(secret []byte, key []byte) []byte {
+	message := make([]byte, len(secret))
+	for i, b := range secret {
+		message[i] = b ^ key[i%len(key)]
+	}
+	return message
+}
 
 // crackSingleByteXor finds the probably key/message for a secret encrypted with the single byte XOR scheme
 func crackSingleByteXor(secret []byte) (byte, []byte) {
@@ -59,6 +68,91 @@ func crackRepeatingKeyXor(secret []byte) ([]byte, []byte) {
 	bestLength := wordScores[len(wordScores)-1].val
 
 	return keys[bestLength], messages[bestLength]
+}
+
+//
+// AES
+//
+
+func encryptAESECB(message []byte, key []byte) []byte {
+	blockSize := 16
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+
+	cipher := make([]byte, 0, len(message))
+	for i := 0; i < len(message); i += blockSize {
+		cipherBlock := make([]byte, blockSize)
+		block.Encrypt(cipherBlock, message[i:i+blockSize])
+		cipher = append(cipher, cipherBlock...)
+	}
+
+	return cipher
+}
+
+func decryptAESECB(secret []byte, key []byte) []byte {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+
+	plaintext := make([]byte, 0, len(secret))
+	for i := 0; i < len(secret); i += 16 {
+		decodedBlock := make([]byte, 16)
+		block.Decrypt(decodedBlock, secret[i:i+16])
+		plaintext = append(plaintext, decodedBlock...)
+	}
+
+	return plaintext
+}
+
+func encryptAESCBC(message []byte, iv []byte, key []byte) []byte {
+	blockSize := len(key)
+	cipher := []byte{}
+
+	if (len(message) % blockSize) > 0 {
+		message = pks7Pad(message, blockSize)
+	}
+	for i := 0; i < len(message); i += blockSize {
+		plainBlock := message[i : i+blockSize]
+		cipherBlock := encryptAESECB(calculateXor(plainBlock, iv), key)
+		iv = cipherBlock
+
+		cipher = append(cipher, cipherBlock...)
+	}
+
+	return pks7Unpad(cipher)
+}
+
+func decryptAESCBC(secret []byte, iv []byte, key []byte) []byte {
+	blockSize := len(key)
+	plaintext := []byte{}
+
+	for i := 0; i < len(secret); i += blockSize {
+		cipherBlock := secret[i : i+blockSize]
+		plaintext = append(plaintext, calculateXor(decryptAESECB(cipherBlock, key), iv)...)
+		iv = cipherBlock
+	}
+
+	return pks7Unpad(plaintext)
+}
+
+func isAESECB(bytes []byte, blockSize int) bool {
+	seenBytes := map[string]int{}
+	for i := 0; i < len(bytes); i += blockSize {
+		seenBytes[string(bytes[i:i+blockSize])]++
+	}
+
+	isECB := false
+	for _, count := range seenBytes {
+		if count > 1 {
+			isECB = true
+		}
+	}
+
+	return isECB
 }
 
 func crackECB(oracle cipherFunc) []byte {
@@ -213,100 +307,6 @@ func findMostCommonBlock(bytes []byte, blockSize int) ([]byte, int) {
 	}
 
 	return maxChunk, maxCount
-}
-
-//
-// Cipher calculators
-//
-
-// calculateXor decrypts the secret with the given key using the repeating xor algorithm
-func calculateXor(secret []byte, key []byte) []byte {
-	message := make([]byte, len(secret))
-	for i, b := range secret {
-		message[i] = b ^ key[i%len(key)]
-	}
-	return message
-}
-
-func encryptAESECB(message []byte, key []byte) []byte {
-	blockSize := 16
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err)
-	}
-
-	cipher := make([]byte, 0, len(message))
-	for i := 0; i < len(message); i += blockSize {
-		cipherBlock := make([]byte, blockSize)
-		block.Encrypt(cipherBlock, message[i:i+blockSize])
-		cipher = append(cipher, cipherBlock...)
-	}
-
-	return cipher
-}
-
-func decryptAESECB(secret []byte, key []byte) []byte {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err)
-	}
-
-	plaintext := make([]byte, 0, len(secret))
-	for i := 0; i < len(secret); i += 16 {
-		decodedBlock := make([]byte, 16)
-		block.Decrypt(decodedBlock, secret[i:i+16])
-		plaintext = append(plaintext, decodedBlock...)
-	}
-
-	return plaintext
-}
-
-func encryptAESCBC(message []byte, iv []byte, key []byte) []byte {
-	blockSize := len(key)
-	cipher := []byte{}
-
-	if (len(message) % blockSize) > 0 {
-		message = pks7Pad(message, blockSize)
-	}
-	for i := 0; i < len(message); i += blockSize {
-		plainBlock := message[i : i+blockSize]
-		cipherBlock := encryptAESECB(calculateXor(plainBlock, iv), key)
-		iv = cipherBlock
-
-		cipher = append(cipher, cipherBlock...)
-	}
-
-	return pks7Unpad(cipher)
-}
-
-func decryptAESCBC(secret []byte, iv []byte, key []byte) []byte {
-	blockSize := len(key)
-	plaintext := []byte{}
-
-	for i := 0; i < len(secret); i += blockSize {
-		cipherBlock := secret[i : i+blockSize]
-		plaintext = append(plaintext, calculateXor(decryptAESECB(cipherBlock, key), iv)...)
-		iv = cipherBlock
-	}
-
-	return pks7Unpad(plaintext)
-}
-
-func isAESECB(bytes []byte, blockSize int) bool {
-	seenBytes := map[string]int{}
-	for i := 0; i < len(bytes); i += blockSize {
-		seenBytes[string(bytes[i:i+blockSize])]++
-	}
-
-	isECB := false
-	for _, count := range seenBytes {
-		if count > 1 {
-			isECB = true
-		}
-	}
-
-	return isECB
 }
 
 // transposeSecret treats the secret as a keyLength X y matrix and transposes it

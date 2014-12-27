@@ -191,7 +191,7 @@ func parseQueryString(query string) map[string]string {
 func profileFor(emailAddress string) string {
 	v := url.Values{
 		"email": []string{emailAddress},
-		"_uid":  []string{"10"},
+		"id":    []string{"10"},
 		"role":  []string{"user"},
 	}
 
