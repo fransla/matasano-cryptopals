@@ -19,16 +19,15 @@ func crackSingleByteXor(secret []byte) (byte, []byte) {
 	message := []byte{}
 	maxScore := float64(0)
 
-	for i := byte(0); i < byte(255); i++ {
-		attempt := calculateXor(secret, []byte{i})
+	for i := 0; i < 256; i++ {
+		attempt := calculateXor(secret, []byte{byte(i)})
 		score := englishScore(attempt)
 
 		if score > maxScore {
 			maxScore = score
-			key = i
+			key = byte(i)
 			message = attempt
 		}
-
 	}
 
 	return key, message
