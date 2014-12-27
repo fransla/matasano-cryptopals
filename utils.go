@@ -176,10 +176,13 @@ func prepareUnknownECBCiphers() {
 func unknownECBCipher(message []byte) []byte {
 	prepareUnknownECBCiphers()
 
+	// message = append([]byte{0}, message...)
 	message = append(message, unknownECBCipherSecret...)
 	// fmt.Println(len(message))
 	// fmt.Println("s", len(unknownECBCipherSecret))
 	message = pks7Pad(message, 16)
+
+	// fmt.Println(message[0:30])
 
 	// fmt.Println("msg:", message)
 

@@ -2,6 +2,8 @@ package main
 
 import (
 	"crypto/aes"
+	"fmt"
+	"math/rand"
 	"sort"
 )
 
@@ -55,7 +57,10 @@ func crackRepeatingKeyXor(secret []byte) ([]byte, []byte) {
 }
 
 func crackECB(oracle cipherFunc) []byte {
+	// Determine the size of the oracle's blocks. We will want to create rainbow
+	// lookup tables using prefixes of one less than the block size
 	blockSize := detectECBBlockSize(oracle)
+	rainbowTablePrefixLength := blockSize - 1
 
 	// Determine an upper bound on our secret size by encrypted an empty message
 	secretLength := len(oracle([]byte{}))
@@ -63,36 +68,74 @@ func crackECB(oracle cipherFunc) []byte {
 	// A slice to hold our leaked secret bytes
 	known := make([]byte, 0, secretLength)
 
-	// We want to force the next byte to read into the last byte postition
-	// of our poisoned block, so start with the index of the end of the last
-	// block with our target data in it, minus one so it leaks the next byte
-	for i := secretLength - 1; i > 0; i-- {
-		// Create a known prefix that is 1 byte shorter than the block length
-		// (i == len(known)-1)
-		buffer := make([]byte, i)
-		prefix := append(buffer, known...)
+	// Iterate until we have a found a pks7padded string, but limit to 10k iterations
+	for i := 0; i < 10000; i++ {
+		knownLength := len(known)
 
-		// Create a table of each possible byte, mapped by the cipher of that
-		// byte appended to our prefix
-		table := buildECBTable(oracle, prefix, blockSize)
-
-		// Send our buffer to the oracle which will append the secret text
-		// and encrypt it. buffer has been forged such that some block of the cipher
-		// should be in our known table
-		cipher := oracle(buffer)
-
-		// Scan the cipher for blocks in our lookup table. If we find one
-		// we can append it to our known slice
-		for j := 0; j < len(cipher); j += blockSize {
-			b, ok := table[string(cipher[j:j+blockSize])]
-			if ok && b != byte(0) {
-				known = append(known, b)
+		// Build a table of hashes with the given prefix and one unknown byte at the end
+		// The prefix is the last `blockSize-1` byes of the known text, prepended with 0s
+		// if necessary
+		rainbowTablePrefix := make([]byte, rainbowTablePrefixLength)
+		for j := 0; j < rainbowTablePrefixLength; j++ {
+			if knownLength-j < 1 {
 				break
 			}
+			rainbowTablePrefix[rainbowTablePrefixLength-1-j] = known[knownLength-1-j]
+		}
+
+		table := buildECBTable(oracle, rainbowTablePrefix)
+
+		// Repeatedly call the oracle with random amounts of padding so that eventually
+		// the prefix+nextByte should be aligned perfectly in a block. This allows us to
+		// not be concerned with whether or not the oracle prepends an unknown number of
+		// byte to input. Limit this loop to 10k iterations max.
+		for j := 0; j < 10000; j++ {
+			var nextByte byte
+			foundNextByte := false
+
+			// Send a random about of padding to the oracle which will append the secret
+			//text and encrypt it. Eventually our next secret byte should align with a block
+			message := make([]byte, blockSize+rand.Intn(16))
+			// fmt.Println(message)
+			cipher := oracle(message)
+
+			// Scan the cipher for blocks in our lookup table.
+			for k := 0; k < len(cipher); k += blockSize {
+				b, ok := table[string(cipher[k:k+blockSize])]
+				if ok && b != byte(0) {
+					nextByte = b
+					foundNextByte = true
+					break
+				}
+			}
+
+			// We found the byte so append to it our known text and start looking for the next
+			if foundNextByte {
+				known = append(known, nextByte)
+				break
+			}
+		}
+
+		if isPks7Padded(known) {
+			return pks7Unpad(known)
 		}
 	}
 
 	return known
+}
+
+func buildECBTable(oracle cipherFunc, prefix []byte) map[string]byte {
+	blockSize := len(prefix) + 1
+	table := map[string]byte{}
+
+	for i := 0; i < 256; i++ {
+		b := byte(i)
+		cipher := oracle(append(prefix, b))
+		fmt.Println(len(cipher))
+		table[string(cipher[0:blockSize])] = b
+	}
+
+	return table
 }
 
 // calculateReapeatingXor decrypts the secret with the given key using the repeating xor algorithm
@@ -180,37 +223,6 @@ func decryptAESCBC(secret []byte, iv []byte, key []byte) []byte {
 	return plaintext
 }
 
-func isAESECB(bytes []byte, blockSize int) bool {
-	seenBytes := map[string]int{}
-	for i := 0; i < len(bytes); i += blockSize {
-		seenBytes[string(bytes[i:i+blockSize])]++
-	}
-
-	isECB := false
-	for _, count := range seenBytes {
-		if count > 1 {
-			isECB = true
-		}
-	}
-
-	return isECB
-}
-
-// transposeSecret treats the secret as a keyLength X y matrix and transposes it
-func transposeSecret(secret []byte, keyLength int) [][]byte {
-	transposed := make([][]byte, keyLength)
-	for i := 0; i < keyLength; i++ {
-		transposed[i] = []byte{}
-	}
-
-	for i, b := range secret {
-		idx := i % keyLength
-		transposed[idx] = append(transposed[idx], b)
-	}
-
-	return transposed
-}
-
 func detectECBBlockSize(oracle cipherFunc) int {
 	// Number of repeating chunks to look for
 	repeatCount := 17
@@ -261,6 +273,37 @@ func detectECBBlockSize(oracle cipherFunc) int {
 	}
 
 	return 0
+}
+
+func isAESECB(bytes []byte, blockSize int) bool {
+	seenBytes := map[string]int{}
+	for i := 0; i < len(bytes); i += blockSize {
+		seenBytes[string(bytes[i:i+blockSize])]++
+	}
+
+	isECB := false
+	for _, count := range seenBytes {
+		if count > 1 {
+			isECB = true
+		}
+	}
+
+	return isECB
+}
+
+// transposeSecret treats the secret as a keyLength X y matrix and transposes it
+func transposeSecret(secret []byte, keyLength int) [][]byte {
+	transposed := make([][]byte, keyLength)
+	for i := 0; i < keyLength; i++ {
+		transposed[i] = []byte{}
+	}
+
+	for i, b := range secret {
+		idx := i % keyLength
+		transposed[idx] = append(transposed[idx], b)
+	}
+
+	return transposed
 }
 
 // findProbableKeyLengths returns the `keyCount` most likely key lengths
@@ -326,18 +369,4 @@ func isPks7Padded(data []byte) bool {
 	}
 
 	return true
-}
-
-func buildECBTable(oracle cipherFunc, prefix []byte, blockSize int) map[string]byte {
-	table := map[string]byte{}
-	blockIdx := len(prefix) / blockSize
-
-	for i := 0; i < 256; i++ {
-		b := byte(i)
-		cipher := oracle(append(prefix, b))
-		block := cipher[blockIdx*blockSize : (blockIdx+1)*blockSize]
-		table[string(block)] = b
-	}
-
-	return table
 }
