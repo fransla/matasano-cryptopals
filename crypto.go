@@ -155,7 +155,7 @@ func isAESECB(bytes []byte, blockSize int) bool {
 	return isECB
 }
 
-func crackECB(oracle cipherFunc) []byte {
+func crackECB(oracle oracleFunc) []byte {
 	// Determine the size of the oracle's blocks. We will want to create rainbow
 	// lookup tables using prefixes of one less than the block size
 	blockSize := detectECBBlockSize(oracle)
@@ -224,7 +224,7 @@ func crackECB(oracle cipherFunc) []byte {
 	return known
 }
 
-func buildECBTable(oracle cipherFunc, prefix []byte) map[string]byte {
+func buildECBTable(oracle oracleFunc, prefix []byte) map[string]byte {
 	blockSize := len(prefix) + 1
 	table := map[string]byte{}
 
@@ -240,7 +240,7 @@ func buildECBTable(oracle cipherFunc, prefix []byte) map[string]byte {
 	return table
 }
 
-func detectECBBlockSize(oracle cipherFunc) int {
+func detectECBBlockSize(oracle oracleFunc) int {
 	// Number of repeating chunks to look for
 	repeatCount := 17
 
@@ -268,7 +268,7 @@ func detectECBBlockSize(oracle cipherFunc) int {
 	return 0
 }
 
-func ecbEncryptedChunkFor(oracle cipherFunc, plaintext []byte, blockSize int, repeatCount int) ([]byte, int) {
+func ecbEncryptedChunkFor(oracle oracleFunc, plaintext []byte, blockSize int, repeatCount int) ([]byte, int) {
 	// newPlaintext := make([]byte, 0, repeatCount)
 	for i := 0; i < repeatCount; i++ {
 		plaintext = append(plaintext, plaintext...)
@@ -292,7 +292,7 @@ func findMostCommonBlock(bytes []byte, blockSize int) ([]byte, int) {
 
 		chunk := bytes[i : i+blockSize]
 
-		if slicesAreEqual(chunk, prev) {
+		if string(chunk) == string(prev) {
 			count++
 		} else {
 			count = 1
@@ -441,9 +441,4 @@ func ecbCipherWithPrependOrcale(message []byte) []byte {
 	message = append(randomPrefix, message...)
 
 	return ecbCipherOracle(message)
-}
-
-func encryptedProfileFor(emailAddress string) []byte {
-	prepareECBCipherOracle()
-	return encryptAESECB([]byte(profileFor(emailAddress)), unknownECBOracleKey)
 }

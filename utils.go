@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-type cipherFunc func([]byte) []byte
+type oracleFunc func([]byte) []byte
 
 // tuple is a container for a value/sort-item pair
 type tuple struct {
@@ -85,6 +85,8 @@ func englishScore(str []byte) float64 {
 	return letterCount / nonLetterCount
 }
 
+// readBase64File reads in a file by the given name and returns a byte slice of
+// it's contents decoded as base64
 func readBase64File(filename string) []byte {
 	rawContents, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -99,6 +101,7 @@ func readBase64File(filename string) []byte {
 	return contents
 }
 
+// readHexSliceFile reads in a file by the given name and returns a slice of each line decoded as hex
 func readHexSliceFile(filename string) [][]byte {
 	inFile, _ := os.Open(filename)
 	defer inFile.Close()
@@ -119,6 +122,7 @@ func readHexSliceFile(filename string) [][]byte {
 	return contents
 }
 
+// randomAESCipher encrypts a message randomly with either ECB or CBC
 func randomAESCipher(message []byte, blockSize int) []byte {
 	key := make([]byte, blockSize)
 	fakePrepend := make([]byte, 5)
@@ -153,24 +157,7 @@ func randomAESCipher(message []byte, blockSize int) []byte {
 	return encryptAESECB(newMessage, key)
 }
 
-func slicesAreEqual(a []byte, b []byte) bool {
-	if a == nil && b == nil {
-		return true
-	}
-
-	if a == nil || b == nil || len(a) != len(b) {
-		return false
-	}
-
-	for j := 0; j < len(a); j++ {
-		if a[j] != b[j] {
-			return false
-		}
-	}
-
-	return true
-}
-
+// parseQueryString takes in a query string like a=1&b=2 and returns a map[string]string
 func parseQueryString(query string) map[string]string {
 	v, err := url.ParseQuery(query)
 	if err != nil {
@@ -188,6 +175,7 @@ func parseQueryString(query string) map[string]string {
 	return ourMap
 }
 
+// profileFor generates a fake user profile for an email address
 func profileFor(emailAddress string) string {
 	v := url.Values{
 		"email": []string{emailAddress},
@@ -198,6 +186,13 @@ func profileFor(emailAddress string) string {
 	return v.Encode()
 }
 
+// encryptedProfileFor creates a user profile and encrypts it with a static key
+func encryptedProfileFor(emailAddress string) []byte {
+	prepareECBCipherOracle()
+	return encryptAESECB([]byte(profileFor(emailAddress)), unknownECBOracleKey)
+}
+
+// prepareUserData creates a fake user data string
 func prepareUserData(userData string) string {
 	return "comment1=cooking%20MCs;userdata=" + url.QueryEscape(userData) + ";comment2=%20like%20a%20pound%20of%20bacon"
 }
