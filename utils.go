@@ -197,3 +197,7 @@ func profileFor(emailAddress string) string {
 
 	return v.Encode()
 }
+
+func prepareUserData(userData string) string {
+	return "comment1=cooking%20MCs;userdata=" + url.QueryEscape(userData) + ";comment2=%20like%20a%20pound%20of%20bacon"
+}

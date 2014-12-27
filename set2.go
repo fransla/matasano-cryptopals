@@ -122,4 +122,16 @@ func Challenge15() {
 
 // Challenge16 performs Matasano crypto challenge #16
 func Challenge16() {
+	// Create a valid user profile and encrypt it
+	message := []byte(prepareUserData("1234567890123456-admin-true"))
+	iv := []byte("AAAAAAAAAAAAAAAA")
+	key := []byte("YELLOW SUBMARINE")
+	cipher := encryptAESCBC(message, iv, key)
+
+	// Change hyphens to characters that are sanitized out of the prepareUserData input
+	cipher[32] ^= '-' ^ ';'
+	cipher[38] ^= '-' ^ '='
+
+	// Decrypt it and we are now and admin
+	fmt.Println(string(decryptAESCBC(cipher, iv, key)))
 }
