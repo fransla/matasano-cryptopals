@@ -15,7 +15,7 @@ func Challenge2() {
 	a := hexToBytes("1c0111001f010100061a024b53535009181c")
 	b := hexToBytes("686974207468652062756c6c277320657965")
 
-	fmt.Println(hex.EncodeToString(calculateReapeatingXor(a, b)))
+	fmt.Println(hex.EncodeToString(calculateXor(a, b)))
 }
 
 // Challenge3 performs Matasano crypto challenge #3
@@ -37,8 +37,8 @@ func Challenge4() {
 	var maxScore float64
 
 	for _, challenge := range challenges {
-		for i := 0; i < 255; i++ {
-			attempt := calculateSingleByteXor(challenge, byte(i))
+		for i := byte(0); i < byte(255); i++ {
+			attempt := calculateXor(challenge, []byte{i})
 			score := englishScore([]byte(attempt))
 
 			if score > maxScore {
@@ -57,7 +57,7 @@ func Challenge5() {
 	text := []byte("Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal")
 	key := []byte("ICE")
 
-	fmt.Println(hex.EncodeToString(calculateReapeatingXor(text, key)))
+	fmt.Println(hex.EncodeToString(calculateXor(text, key)))
 }
 
 // Challenge6 performs Matasano crypto challenge #6
