@@ -69,7 +69,7 @@ func crackECB(oracle cipherFunc) []byte {
 	known := make([]byte, 0, secretLength)
 
 	// Iterate until we have a found a pks7padded string, but limit to 10k iterations
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 4000; i++ {
 		knownLength := len(known)
 
 		// Build a table of hashes with the given prefix and one unknown byte at the end
@@ -89,7 +89,7 @@ func crackECB(oracle cipherFunc) []byte {
 		// the prefix+nextByte should be aligned perfectly in a block. This allows us to
 		// not be concerned with whether or not the oracle prepends an unknown number of
 		// byte to input. Limit this loop to 10k iterations max.
-		for j := 0; j < 10000; j++ {
+		for j := 0; j < 1; j++ {
 			var nextByte byte
 			foundNextByte := false
 
@@ -117,6 +117,7 @@ func crackECB(oracle cipherFunc) []byte {
 		}
 
 		if isPks7Padded(known) {
+			fmt.Println("Done.")
 			return pks7Unpad(known)
 		}
 	}
@@ -130,12 +131,83 @@ func buildECBTable(oracle cipherFunc, prefix []byte) map[string]byte {
 
 	for i := 0; i < 256; i++ {
 		b := byte(i)
-		cipher := oracle(append(prefix, b))
-		fmt.Println(len(cipher))
-		table[string(cipher[0:blockSize])] = b
+		message := append(prefix, b)
+
+		block, _ := ecbEncryptedChunkFor(oracle, message, blockSize, 3)
+
+		table[string(block)] = b
 	}
 
 	return table
+}
+
+func detectECBBlockSize(oracle cipherFunc) int {
+	// Number of repeating chunks to look for
+	repeatCount := 17
+
+	for blockSizeAttempt := 1; blockSizeAttempt < 128; blockSizeAttempt++ {
+		plaintext := make([]byte, blockSizeAttempt)
+		for i := 0; i < blockSizeAttempt; i++ {
+			plaintext[i] = 'A'
+		}
+
+		newPlaintext := make([]byte, 0, blockSizeAttempt*repeatCount)
+		for i := 0; i < repeatCount; i++ {
+			newPlaintext = append(newPlaintext, plaintext...)
+		}
+
+		cipher := oracle(newPlaintext)
+
+		_, count := findMostCommonBlock(cipher, blockSizeAttempt)
+
+		// We found the correct number (it may not be a perfect boundary so we'll only find repleatCount-1)
+		if count == repeatCount || count == repeatCount-1 {
+			return blockSizeAttempt
+		}
+	}
+
+	return 0
+}
+
+func ecbEncryptedChunkFor(oracle cipherFunc, plaintext []byte, blockSize int, repeatCount int) ([]byte, int) {
+	// newPlaintext := make([]byte, 0, repeatCount)
+	for i := 0; i < repeatCount; i++ {
+		plaintext = append(plaintext, plaintext...)
+	}
+
+	return findMostCommonBlock(oracle(plaintext), blockSize)
+}
+
+func findMostCommonBlock(bytes []byte, blockSize int) ([]byte, int) {
+	// Find maximum number of repeating blocks in the cipertext
+	count := 1
+	maxCount := 1
+	var maxChunk []byte
+	var prev []byte
+	for i := 0; i < len(bytes); i += blockSize {
+		// Ciphertext should be an even multiple of the block size so if
+		// this isn't we can just skip it
+		if (len(bytes) % blockSize) > 0 {
+			continue
+		}
+
+		chunk := bytes[i : i+blockSize]
+
+		if slicesAreEqual(chunk, prev) {
+			count++
+		} else {
+			count = 1
+		}
+
+		if count > maxCount {
+			maxCount = count
+			maxChunk = chunk
+		}
+
+		prev = chunk
+	}
+
+	return maxChunk, maxCount
 }
 
 // calculateReapeatingXor decrypts the secret with the given key using the repeating xor algorithm
@@ -221,58 +293,6 @@ func decryptAESCBC(secret []byte, iv []byte, key []byte) []byte {
 	}
 
 	return plaintext
-}
-
-func detectECBBlockSize(oracle cipherFunc) int {
-	// Number of repeating chunks to look for
-	repeatCount := 17
-
-	for blockSizeAttempt := 1; blockSizeAttempt < 128; blockSizeAttempt++ {
-		plaintext := make([]byte, blockSizeAttempt)
-		for i := 0; i < blockSizeAttempt; i++ {
-			plaintext[i] = 'A'
-		}
-
-		newPlaintext := make([]byte, 0, blockSizeAttempt*20)
-		for i := 0; i < repeatCount; i++ {
-			newPlaintext = append(newPlaintext, plaintext...)
-		}
-
-		ciphertext := oracle(newPlaintext)
-
-		// Find maximum number of repeating blocks in the cipertext
-		count := 1
-		maxCount := 1
-		var prev []byte
-		for i := 0; i < len(ciphertext); i += blockSizeAttempt {
-			// Ciphertext should be an even multiple of the block size so if
-			// this isn't we can just skip it
-			if (len(ciphertext) % blockSizeAttempt) > 0 {
-				continue
-			}
-
-			chunk := ciphertext[i : i+blockSizeAttempt]
-
-			if slicesAreEqual(chunk, prev) {
-				count++
-			} else {
-				count = 1
-			}
-
-			if count > maxCount {
-				maxCount = count
-			}
-
-			prev = chunk
-		}
-
-		// We found the correct number (it may not be a perfect boundary so we'll only find repleatCount-1)
-		if maxCount == repeatCount || maxCount == repeatCount-1 {
-			return blockSizeAttempt
-		}
-	}
-
-	return 0
 }
 
 func isAESECB(bytes []byte, blockSize int) bool {
