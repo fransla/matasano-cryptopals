@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"io/ioutil"
+	"net/url"
 	"os"
 )
 
@@ -168,4 +169,31 @@ func slicesAreEqual(a []byte, b []byte) bool {
 	}
 
 	return true
+}
+
+func parseQueryString(query string) map[string]string {
+	v, err := url.ParseQuery(query)
+	if err != nil {
+		panic(err)
+	}
+
+	ourMap := map[string]string{}
+	for k, vs := range v {
+		if len(vs) < 1 {
+			continue
+		}
+		ourMap[k] = vs[0]
+	}
+
+	return ourMap
+}
+
+func profileFor(emailAddress string) string {
+	v := url.Values{
+		"email": []string{emailAddress},
+		"_uid":  []string{"10"},
+		"role":  []string{"user"},
+	}
+
+	return v.Encode()
 }

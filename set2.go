@@ -64,6 +64,7 @@ func Challenge11() {
 }
 
 // Challenge12 performs Matasano crypto challenge #12
+// Crack a secret string appened by an encryption oracle using ECB byte-by-byte
 func Challenge12() {
 	// Verify it's ECB
 	ciphertext := ecbCipherOracle([]byte("YELLOW SUBMARINEYELLOW SUBMARINEYELLOW SUBMARINE"))
@@ -80,10 +81,24 @@ func Challenge12() {
 }
 
 // Challenge13 performs Matasano crypto challenge #13
+// Mangle encrypted profiles to build an admin profile
+// TODO: This leaves a trailing "&role=user" which should be fixed
 func Challenge13() {
+	encryptedAttackerProfile := encryptedProfileFor("attackerXXXXXX@example.com")
+	encryptedAdminProfile := encryptedProfileFor("XXadmin")
+
+	attackerHalf := encryptedAttackerProfile[0:48]
+	adminHalf := encryptedAdminProfile[16:32]
+
+	newCipher := append(attackerHalf, adminHalf...)
+	fmt.Println(newCipher)
+
+	newProfile := decryptAESECB(newCipher, unknownECBOracleKey)
+	fmt.Println(string(newProfile))
 }
 
 // Challenge14 performs Matasano crypto challenge #14
+// TODO: Doesn't really work yet, need to finish
 func Challenge14() {
 	oracle := ecbCipherWithPrependOrcale
 	fmt.Println(string(crackECB(oracle)))
@@ -91,6 +106,7 @@ func Challenge14() {
 }
 
 // Challenge15 performs Matasano crypto challenge #15
+// Validte pks7 padding
 func Challenge15() {
 	tests := map[string]bool{
 		"ICE ICE BABY\x04\x04\x04\x04": true,
@@ -102,4 +118,8 @@ func Challenge15() {
 		isValid := isPks7Padded([]byte(str))
 		fmt.Println("Should be", shouldBeValid, ":", isValid)
 	}
+}
+
+// Challenge16 performs Matasano crypto challenge #16
+func Challenge16() {
 }

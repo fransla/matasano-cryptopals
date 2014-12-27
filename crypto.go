@@ -417,7 +417,7 @@ func validatePks7Padded(data []byte) {
 var unknownECBOracleKey []byte
 var unknownECBOracleSecret []byte
 
-func ecbCipherOracle(message []byte) []byte {
+func prepareECBCipherOracle() {
 	var err error
 
 	if unknownECBOracleKey == nil {
@@ -432,6 +432,11 @@ func ecbCipherOracle(message []byte) []byte {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func ecbCipherOracle(message []byte) []byte {
+	prepareECBCipherOracle()
+
 	message = append(message, unknownECBOracleSecret...)
 	message = pks7Pad(message, 16)
 
@@ -448,4 +453,9 @@ func ecbCipherWithPrependOrcale(message []byte) []byte {
 	message = append(randomPrefix, message...)
 
 	return ecbCipherOracle(message)
+}
+
+func encryptedProfileFor(emailAddress string) []byte {
+	prepareECBCipherOracle()
+	return encryptAESECB([]byte(profileFor(emailAddress)), unknownECBOracleKey)
 }
