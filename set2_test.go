@@ -74,7 +74,7 @@ func TestChallenge13(t *testing.T) {
 
 	// Stick the two together and decrypt for a poisoned profile
 	newCipher := append(attackerHalf, adminHalf...)
-	newProfile := decryptAESECB(newCipher, unknownECBOracleKey)
+	newProfile := decryptAESECB(newCipher, unknownOracleKey)
 	assert.Equal(t, "email=attackerXXXXXXXX%40example.com&id=10&role=admin&id=10&role", string(newProfile))
 }
 

@@ -45,6 +45,15 @@ func hexToBytes(hexString string) []byte {
 	return bytes
 }
 
+func base64ToBytes(base64str string) []byte {
+	bytes, err := base64.StdEncoding.DecodeString(string(base64str))
+	if err != nil {
+		panic(err)
+	}
+	return bytes
+
+}
+
 // hammingDistance calculates the number of differing bits between two byte slices
 func hammingDistance(a []byte, b []byte) int {
 	var distance int
@@ -93,12 +102,7 @@ func readBase64File(filename string) []byte {
 		panic(err)
 	}
 
-	contents, err := base64.StdEncoding.DecodeString(string(rawContents))
-	if err != nil {
-		panic(err)
-	}
-
-	return contents
+	return base64ToBytes(string(rawContents))
 }
 
 // readHexSliceFile reads in a file by the given name and returns a slice of each line decoded as hex
@@ -188,8 +192,8 @@ func profileFor(emailAddress string) string {
 
 // encryptedProfileFor creates a user profile and encrypts it with a static key
 func encryptedProfileFor(emailAddress string) []byte {
-	prepareECBCipherOracle()
-	return encryptAESECB([]byte(profileFor(emailAddress)), unknownECBOracleKey)
+	prepareCipherOracles()
+	return encryptAESECB([]byte(profileFor(emailAddress)), unknownOracleKey)
 }
 
 // prepareUserData creates a fake user data string

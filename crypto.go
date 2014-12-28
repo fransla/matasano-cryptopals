@@ -136,7 +136,8 @@ func decryptAESCBC(secret []byte, iv []byte, key []byte) []byte {
 		iv = cipherBlock
 	}
 
-	return pks7Unpad(plaintext)
+	return plaintext
+	// return pks7Unpad(plaintext)
 }
 
 func isAESECB(bytes []byte, blockSize int) bool {
@@ -380,7 +381,7 @@ func isPks7Padded(data []byte) bool {
 
 	padLength := int(data[dataLength-1])
 
-	if dataLength < padLength {
+	if padLength == 0 || dataLength < padLength {
 		return false
 	}
 
@@ -402,15 +403,15 @@ func validatePks7Padded(data []byte) {
 //
 // Oracles
 //
-var unknownECBOracleKey []byte
+var unknownOracleKey []byte
 var unknownECBOracleSecret []byte
 
-func prepareECBCipherOracle() {
+func prepareCipherOracles() {
 	var err error
 
-	if unknownECBOracleKey == nil {
-		unknownECBOracleKey = make([]byte, 16)
-		_, err := crand.Read(unknownECBOracleKey)
+	if unknownOracleKey == nil {
+		unknownOracleKey = make([]byte, 16)
+		_, err := crand.Read(unknownOracleKey)
 		if err != nil {
 			panic(err)
 		}
@@ -423,12 +424,12 @@ func prepareECBCipherOracle() {
 }
 
 func ecbCipherOracle(message []byte) []byte {
-	prepareECBCipherOracle()
+	prepareCipherOracles()
 
 	message = append(message, unknownECBOracleSecret...)
 	message = pks7Pad(message, 16)
 
-	return encryptAESECB(message, unknownECBOracleKey)
+	return encryptAESECB(message, unknownOracleKey)
 }
 
 func ecbCipherWithPrependOrcale(message []byte) []byte {
@@ -441,4 +442,30 @@ func ecbCipherWithPrependOrcale(message []byte) []byte {
 	message = append(randomPrefix, message...)
 
 	return ecbCipherOracle(message)
+}
+
+func cbcPaddingOracle(iv []byte) []byte {
+	prepareCipherOracles()
+
+	possibleMessages := [][]byte{
+		base64ToBytes("MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc="),
+		base64ToBytes("MDAwMDAxV2l0aCB0aGUgYmFzcyBraWNrZWQgaW4gYW5kIHRoZSBWZWdhJ3MgYXJlIHB1bXBpbic="),
+		base64ToBytes("MDAwMDAyUXVpY2sgdG8gdGhlIHBvaW50LCB0byB0aGUgcG9pbnQsIG5vIGZha2luZw=="),
+		base64ToBytes("MDAwMDAzQ29va2luZyBNQydzIGxpa2UgYSBwb3VuZCBvZiBiYWNvbg=="),
+		base64ToBytes("MDAwMDA0QnVybmluZyAnZW0sIGlmIHlvdSBhaW4ndCBxdWljayBhbmQgbmltYmxl"),
+		base64ToBytes("MDAwMDA1SSBnbyBjcmF6eSB3aGVuIEkgaGVhciBhIGN5bWJhbA=="),
+		base64ToBytes("MDAwMDA2QW5kIGEgaGlnaCBoYXQgd2l0aCBhIHNvdXBlZCB1cCB0ZW1wbw=="),
+		base64ToBytes("MDAwMDA3SSdtIG9uIGEgcm9sbCwgaXQncyB0aW1lIHRvIGdvIHNvbG8="),
+		base64ToBytes("MDAwMDA4b2xsaW4nIGluIG15IGZpdmUgcG9pbnQgb2g="),
+		base64ToBytes("MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93"),
+	}
+
+	message := possibleMessages[rand.Intn(len(possibleMessages))]
+
+	return encryptAESCBC(message, iv, unknownOracleKey)
+}
+
+// TODO: this should use unknownOracleKey instead of accepting a key param
+func checkEncryptedCNCPadding(cipher []byte, iv []byte, key []byte) bool {
+	return isPks7Padded(decryptAESCBC(cipher, iv, key))
 }
