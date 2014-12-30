@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,8 +20,6 @@ func TestChallenge17(t *testing.T) {
 			if err == nil {
 				// Remember we've seen this plaintext
 				plaintextsFingerprints[string(plaintext[0:6])] = struct{}{}
-
-				fmt.Println(string(plaintext))
 				break
 			}
 		}
