@@ -22,14 +22,14 @@ func TestChallenge10(t *testing.T) {
 	blockSize := len(key)
 	iv := make([]byte, blockSize)
 
-	assert.Equal(t, message, decryptAESCBC(encryptAESCBC(message, iv, key), iv, key))
+	assert.Equal(t, message, pks7Unpad(decryptAESCBC(encryptAESCBC(message, iv, key), iv, key)))
 
 	message = readBase64File("data/10.txt")
 	key = []byte("YELLOW SUBMARINE")
 	blockSize = len(key)
 	iv = make([]byte, blockSize)
 
-	assert.Equal(t, message, decryptAESCBC(encryptAESCBC(message, iv, key), iv, key))
+	assert.Equal(t, message, pks7Unpad(decryptAESCBC(encryptAESCBC(message, iv, key), iv, key)))
 
 }
 
