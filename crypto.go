@@ -349,6 +349,78 @@ func findProbableKeyLengths(data []byte, keyCount int) []int {
 	return lengths
 }
 
+func crackCBCWithPaddingOracle(cipher []byte, iv []byte) []byte {
+	blockLength := len(iv)
+	plaintextLength := len(cipher)
+
+	// Holder for our solved bytes
+	plaintext := make([]byte, plaintextLength)
+
+	fmt.Println("cipher:", cipher)
+
+	// Iterate over each 0-based block index in reverse order
+	for block := (plaintextLength / blockLength) - 1; block >= 0; block-- {
+		// Iterate over each 0-based block element index in reverse order
+		for element := blockLength - 1; element >= 0; element-- {
+			// Assume this element is the first element of padding, determine what the
+			// padding length should be (0 for first element of block; blockLength-1 for last)
+			paddingLength := blockLength - element
+			paddingByte := byte(paddingLength)
+
+			// The cipher for this block
+			cipherBlock := cipher[block*blockLength : (block+1)*blockLength]
+
+			// The cipher for the previous block
+			// It should be the iv if the current block is block 0
+			c := iv
+			if block > 0 {
+				c = cipher[(block-1)*blockLength : block*blockLength]
+			}
+
+			// The poisioned block we will use to determine the intermediate state
+			cPrime := make([]byte, len(c))
+			copy(cPrime, c)
+
+			// Set each element of the block that we've already calculated such that
+			// after decrypting they will equal the current padding byte
+			for j := blockLength - 1; j > element; j-- {
+				fmt.Println("p", cPrime[j], plaintext[(block*blockLength)+j], paddingByte)
+				fmt.Println(plaintext)
+				cPrime[j] ^= plaintext[(block*blockLength)+j] ^ paddingByte
+			}
+
+			// Try all possible bytes until we find the one that decrypts to a correctly padded
+			// text. This tells us this element decrypts and XORs to `paddingByte` so we can
+			// determine the inermediate state, and then the plaintext
+			foundCPrime := false
+			for cPrimeAttempt := 0; cPrimeAttempt < 256; cPrimeAttempt++ {
+				cPrime[element] = byte(cPrimeAttempt)
+
+				if checkEncryptedCNCPadding(cipherBlock, cPrime) {
+					foundCPrime = true
+					break
+				}
+			}
+
+			fmt.Println("paddingByte:", paddingByte)
+			fmt.Println("c:", c)
+			fmt.Println("cPrime:", cPrime)
+			fmt.Println("decrypt:", decryptAESCBC(cipherBlock, cPrime, unknownOracleKey))
+
+			if !foundCPrime {
+				panic("No cprime found")
+			}
+
+			fmt.Println("plain", c[element], cPrime[element], paddingByte, string(c[element]^cPrime[element]^paddingByte))
+
+			// Calculate the plain text for this byte and put it in our plaintext byte slice
+			plaintext[(block*blockLength)+element] = c[element] ^ cPrime[element] ^ paddingByte
+		}
+	}
+
+	return plaintext
+}
+
 //
 // PKS7
 //
@@ -403,7 +475,9 @@ func validatePks7Padded(data []byte) {
 //
 // Oracles
 //
-var unknownOracleKey []byte
+// var unknownOracleKey []byte
+
+var unknownOracleKey = []byte("YELLOW SUBMARINA")
 var unknownECBOracleSecret []byte
 
 func prepareCipherOracles() {
@@ -444,28 +518,31 @@ func ecbCipherWithPrependOrcale(message []byte) []byte {
 	return ecbCipherOracle(message)
 }
 
+var cbcPaddingOracleIteration = 0
+
 func cbcPaddingOracle(iv []byte) []byte {
 	prepareCipherOracles()
 
 	possibleMessages := [][]byte{
-		base64ToBytes("MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc="),
-		base64ToBytes("MDAwMDAxV2l0aCB0aGUgYmFzcyBraWNrZWQgaW4gYW5kIHRoZSBWZWdhJ3MgYXJlIHB1bXBpbic="),
-		base64ToBytes("MDAwMDAyUXVpY2sgdG8gdGhlIHBvaW50LCB0byB0aGUgcG9pbnQsIG5vIGZha2luZw=="),
-		base64ToBytes("MDAwMDAzQ29va2luZyBNQydzIGxpa2UgYSBwb3VuZCBvZiBiYWNvbg=="),
-		base64ToBytes("MDAwMDA0QnVybmluZyAnZW0sIGlmIHlvdSBhaW4ndCBxdWljayBhbmQgbmltYmxl"),
-		base64ToBytes("MDAwMDA1SSBnbyBjcmF6eSB3aGVuIEkgaGVhciBhIGN5bWJhbA=="),
-		base64ToBytes("MDAwMDA2QW5kIGEgaGlnaCBoYXQgd2l0aCBhIHNvdXBlZCB1cCB0ZW1wbw=="),
+		// base64ToBytes("MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc="),
+		// base64ToBytes("MDAwMDAxV2l0aCB0aGUgYmFzcyBraWNrZWQgaW4gYW5kIHRoZSBWZWdhJ3MgYXJlIHB1bXBpbic="),
+		// base64ToBytes("MDAwMDAyUXVpY2sgdG8gdGhlIHBvaW50LCB0byB0aGUgcG9pbnQsIG5vIGZha2luZw=="),
+		// base64ToBytes("MDAwMDAzQ29va2luZyBNQydzIGxpa2UgYSBwb3VuZCBvZiBiYWNvbg=="),
+		// base64ToBytes("MDAwMDA0QnVybmluZyAnZW0sIGlmIHlvdSBhaW4ndCBxdWljayBhbmQgbmltYmxl"),
+		// base64ToBytes("MDAwMDA1SSBnbyBjcmF6eSB3aGVuIEkgaGVhciBhIGN5bWJhbA=="),
+		// base64ToBytes("MDAwMDA2QW5kIGEgaGlnaCBoYXQgd2l0aCBhIHNvdXBlZCB1cCB0ZW1wbw=="),
 		base64ToBytes("MDAwMDA3SSdtIG9uIGEgcm9sbCwgaXQncyB0aW1lIHRvIGdvIHNvbG8="),
 		base64ToBytes("MDAwMDA4b2xsaW4nIGluIG15IGZpdmUgcG9pbnQgb2g="),
 		base64ToBytes("MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93"),
 	}
 
 	message := possibleMessages[rand.Intn(len(possibleMessages))]
+	message = possibleMessages[(cbcPaddingOracleIteration % len(possibleMessages))]
+	cbcPaddingOracleIteration++
 
 	return encryptAESCBC(message, iv, unknownOracleKey)
 }
 
-// TODO: this should use unknownOracleKey instead of accepting a key param
-func checkEncryptedCNCPadding(cipher []byte, iv []byte, key []byte) bool {
-	return isPks7Padded(decryptAESCBC(cipher, iv, key))
+func checkEncryptedCNCPadding(cipher []byte, iv []byte) bool {
+	return isPks7Padded(decryptAESCBC(cipher, iv, unknownOracleKey))
 }
