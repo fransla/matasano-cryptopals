@@ -28,3 +28,17 @@ func TestChallenge17(t *testing.T) {
 	// Ensure we've seen them all
 	assert.Equal(t, 10, len(plaintextsFingerprints))
 }
+
+func TestChallenge18(t *testing.T) {
+	cipher := base64ToBytes("L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==")
+	key := []byte("YELLOW SUBMARINE")
+	nonce := make([]byte, 8)
+
+	plaintext := calculateAESCTR(cipher, key, nonce)
+	assert.Equal(t, "Yo, VIP Let's kick it Ice, Ice, baby Ice, Ice, baby ", string(plaintext))
+
+	key = []byte("WOWMANYSECRECY!!")
+	plaintext = []byte("Hey this stream cipher stuff is p cool")
+	assert.Equal(t, plaintext, calculateAESCTR(calculateAESCTR(plaintext, key, nonce), key, nonce))
+
+}
