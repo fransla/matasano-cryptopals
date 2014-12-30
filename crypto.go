@@ -109,38 +109,6 @@ func decryptAESECB(secret []byte, key []byte) []byte {
 	return plaintext
 }
 
-func encryptAESCBC(message []byte, iv []byte, key []byte) []byte {
-	blockSize := len(key)
-	cipher := []byte{}
-
-	if (len(message) % blockSize) > 0 {
-		message = pks7Pad(message, blockSize)
-	}
-	for i := 0; i < len(message); i += blockSize {
-		plainBlock := message[i : i+blockSize]
-		cipherBlock := encryptAESECB(calculateXor(plainBlock, iv), key)
-		iv = cipherBlock
-
-		cipher = append(cipher, cipherBlock...)
-	}
-
-	return pks7Unpad(cipher)
-}
-
-func decryptAESCBC(secret []byte, iv []byte, key []byte) []byte {
-	blockSize := len(key)
-	plaintext := []byte{}
-
-	for i := 0; i < len(secret); i += blockSize {
-		cipherBlock := secret[i : i+blockSize]
-		plaintext = append(plaintext, calculateXor(decryptAESECB(cipherBlock, key), iv)...)
-		iv = cipherBlock
-	}
-
-	return plaintext
-	// return pks7Unpad(plaintext)
-}
-
 func isAESECB(bytes []byte, blockSize int) bool {
 	seenBytes := map[string]int{}
 	for i := 0; i < len(bytes); i += blockSize {
@@ -348,6 +316,41 @@ func findProbableKeyLengths(data []byte, keyCount int) []int {
 	}
 
 	return lengths
+}
+
+//
+// AES CBC
+//
+
+func encryptAESCBC(message []byte, iv []byte, key []byte) []byte {
+	blockSize := len(key)
+	cipher := []byte{}
+
+	if (len(message) % blockSize) > 0 {
+		message = pks7Pad(message, blockSize)
+	}
+	for i := 0; i < len(message); i += blockSize {
+		plainBlock := message[i : i+blockSize]
+		cipherBlock := encryptAESECB(calculateXor(plainBlock, iv), key)
+		iv = cipherBlock
+
+		cipher = append(cipher, cipherBlock...)
+	}
+
+	return pks7Unpad(cipher)
+}
+
+func decryptAESCBC(secret []byte, iv []byte, key []byte) []byte {
+	blockSize := len(key)
+	plaintext := []byte{}
+
+	for i := 0; i < len(secret); i += blockSize {
+		cipherBlock := secret[i : i+blockSize]
+		plaintext = append(plaintext, calculateXor(decryptAESECB(cipherBlock, key), iv)...)
+		iv = cipherBlock
+	}
+
+	return plaintext
 }
 
 func crackCBCWithPaddingOracle(cipher []byte, iv []byte) ([]byte, error) {
