@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	crand "crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -349,14 +350,12 @@ func findProbableKeyLengths(data []byte, keyCount int) []int {
 	return lengths
 }
 
-func crackCBCWithPaddingOracle(cipher []byte, iv []byte) []byte {
+func crackCBCWithPaddingOracle(cipher []byte, iv []byte) ([]byte, error) {
 	blockLength := len(iv)
 	plaintextLength := len(cipher)
 
 	// Holder for our solved bytes
 	plaintext := make([]byte, plaintextLength)
-
-	fmt.Println("cipher:", cipher)
 
 	// Iterate over each 0-based block index in reverse order
 	for block := (plaintextLength / blockLength) - 1; block >= 0; block-- {
@@ -384,41 +383,34 @@ func crackCBCWithPaddingOracle(cipher []byte, iv []byte) []byte {
 			// Set each element of the block that we've already calculated such that
 			// after decrypting they will equal the current padding byte
 			for j := blockLength - 1; j > element; j-- {
-				fmt.Println("p", cPrime[j], plaintext[(block*blockLength)+j], paddingByte)
-				fmt.Println(plaintext)
 				cPrime[j] ^= plaintext[(block*blockLength)+j] ^ paddingByte
+			}
+
+			// Try setting the elements before this one to random garbage to hopefully
+			// prevent them from XORing to real padding which can screw us up
+			for i := element - 1; i >= 0; i-- {
+				cPrime[i] = byte(rand.Intn(256))
 			}
 
 			// Try all possible bytes until we find the one that decrypts to a correctly padded
 			// text. This tells us this element decrypts and XORs to `paddingByte` so we can
 			// determine the inermediate state, and then the plaintext
-			foundCPrime := false
 			for cPrimeAttempt := 0; cPrimeAttempt < 256; cPrimeAttempt++ {
 				cPrime[element] = byte(cPrimeAttempt)
 
 				if checkEncryptedCNCPadding(cipherBlock, cPrime) {
-					foundCPrime = true
 					break
+				} else if cPrimeAttempt == 255 {
+					return nil, errors.New("No correct cPrime byte found")
 				}
 			}
-
-			fmt.Println("paddingByte:", paddingByte)
-			fmt.Println("c:", c)
-			fmt.Println("cPrime:", cPrime)
-			fmt.Println("decrypt:", decryptAESCBC(cipherBlock, cPrime, unknownOracleKey))
-
-			if !foundCPrime {
-				panic("No cprime found")
-			}
-
-			fmt.Println("plain", c[element], cPrime[element], paddingByte, string(c[element]^cPrime[element]^paddingByte))
 
 			// Calculate the plain text for this byte and put it in our plaintext byte slice
 			plaintext[(block*blockLength)+element] = c[element] ^ cPrime[element] ^ paddingByte
 		}
 	}
 
-	return plaintext
+	return plaintext, nil
 }
 
 //
@@ -524,21 +516,19 @@ func cbcPaddingOracle(iv []byte) []byte {
 	prepareCipherOracles()
 
 	possibleMessages := [][]byte{
-		// base64ToBytes("MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc="),
-		// base64ToBytes("MDAwMDAxV2l0aCB0aGUgYmFzcyBraWNrZWQgaW4gYW5kIHRoZSBWZWdhJ3MgYXJlIHB1bXBpbic="),
-		// base64ToBytes("MDAwMDAyUXVpY2sgdG8gdGhlIHBvaW50LCB0byB0aGUgcG9pbnQsIG5vIGZha2luZw=="),
-		// base64ToBytes("MDAwMDAzQ29va2luZyBNQydzIGxpa2UgYSBwb3VuZCBvZiBiYWNvbg=="),
-		// base64ToBytes("MDAwMDA0QnVybmluZyAnZW0sIGlmIHlvdSBhaW4ndCBxdWljayBhbmQgbmltYmxl"),
-		// base64ToBytes("MDAwMDA1SSBnbyBjcmF6eSB3aGVuIEkgaGVhciBhIGN5bWJhbA=="),
-		// base64ToBytes("MDAwMDA2QW5kIGEgaGlnaCBoYXQgd2l0aCBhIHNvdXBlZCB1cCB0ZW1wbw=="),
+		base64ToBytes("MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc="),
+		base64ToBytes("MDAwMDAxV2l0aCB0aGUgYmFzcyBraWNrZWQgaW4gYW5kIHRoZSBWZWdhJ3MgYXJlIHB1bXBpbic="),
+		base64ToBytes("MDAwMDAyUXVpY2sgdG8gdGhlIHBvaW50LCB0byB0aGUgcG9pbnQsIG5vIGZha2luZw=="),
+		base64ToBytes("MDAwMDAzQ29va2luZyBNQydzIGxpa2UgYSBwb3VuZCBvZiBiYWNvbg=="),
+		base64ToBytes("MDAwMDA0QnVybmluZyAnZW0sIGlmIHlvdSBhaW4ndCBxdWljayBhbmQgbmltYmxl"),
+		base64ToBytes("MDAwMDA1SSBnbyBjcmF6eSB3aGVuIEkgaGVhciBhIGN5bWJhbA=="),
+		base64ToBytes("MDAwMDA2QW5kIGEgaGlnaCBoYXQgd2l0aCBhIHNvdXBlZCB1cCB0ZW1wbw=="),
 		base64ToBytes("MDAwMDA3SSdtIG9uIGEgcm9sbCwgaXQncyB0aW1lIHRvIGdvIHNvbG8="),
 		base64ToBytes("MDAwMDA4b2xsaW4nIGluIG15IGZpdmUgcG9pbnQgb2g="),
 		base64ToBytes("MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93"),
 	}
 
 	message := possibleMessages[rand.Intn(len(possibleMessages))]
-	message = possibleMessages[(cbcPaddingOracleIteration % len(possibleMessages))]
-	cbcPaddingOracleIteration++
 
 	return encryptAESCBC(message, iv, unknownOracleKey)
 }
