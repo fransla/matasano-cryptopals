@@ -1,7 +1,9 @@
 package main
 
 import (
+	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -73,4 +75,21 @@ func TestChallenge20(t *testing.T) {
 	_, message := crackRepeatingKeyXor(concatenatedCiphers, []int{shortestCipher})
 
 	assert.Equal(t, string(message[0:13]), "i'm rated \"R\"")
+}
+
+func TestChallenge21(t *testing.T) {
+	randomSeed := rand.Intn(99999)
+	mt1 := newMersenneTwister(randomSeed)
+	mt2 := newMersenneTwister(randomSeed)
+
+	for i := 0; i < 100; i++ {
+		assert.Equal(t, mt1.next(), mt2.next())
+	}
+}
+
+func TestChallenge22(t *testing.T) {
+	seed := int(time.Now().Unix())
+	crackedSeed, err := crackMersenneTwisterSeed(newMersenneTwister(seed))
+	assert.NoError(t, err)
+	assert.Equal(t, seed, crackedSeed)
 }
