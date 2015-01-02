@@ -45,8 +45,7 @@ func crackSingleByteXor(secret []byte) (byte, []byte) {
 }
 
 // crackRepeatingKeyXor tries to unencrypt a secret encrypted with a repeating XOR scheme
-func crackRepeatingKeyXor(secret []byte) ([]byte, []byte) {
-	probableKeyLengths := findProbableKeyLengths(secret, 3)
+func crackRepeatingKeyXor(secret []byte, probableKeyLengths []int) ([]byte, []byte) {
 	keys := map[int][]byte{}
 	messages := map[int][]byte{}
 	wordScores := tupleSortList{}

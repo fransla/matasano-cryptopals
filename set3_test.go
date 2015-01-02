@@ -42,3 +42,35 @@ func TestChallenge18(t *testing.T) {
 	assert.Equal(t, plaintext, calculateAESCTR(calculateAESCTR(plaintext, key, nonce), key, nonce))
 
 }
+
+func TestChallenge19(t *testing.T) {
+	// TODO
+}
+
+func TestChallenge20(t *testing.T) {
+	messages := readBase64SliceFile("data/20.txt")
+	key := []byte("YELLOW SUBMARINE")
+	nonce := make([]byte, 8)
+
+	var shortestCipher int
+	ciphers := make([][]byte, 0, len(messages))
+
+	for _, message := range messages {
+		cipher := calculateAESCTR(message, key, nonce)
+		ciphers = append(ciphers, cipher)
+
+		cipherLength := len(cipher)
+		if shortestCipher == 0 || cipherLength < shortestCipher {
+			shortestCipher = cipherLength
+		}
+	}
+
+	concatenatedCiphers := make([]byte, 0, len(ciphers)*shortestCipher)
+	for _, cipher := range ciphers {
+		concatenatedCiphers = append(concatenatedCiphers, cipher[0:shortestCipher]...)
+	}
+
+	_, message := crackRepeatingKeyXor(concatenatedCiphers, []int{shortestCipher})
+
+	assert.Equal(t, string(message[0:13]), "i'm rated \"R\"")
+}

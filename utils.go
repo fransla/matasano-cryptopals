@@ -46,7 +46,7 @@ func hexToBytes(hexString string) []byte {
 }
 
 func base64ToBytes(base64str string) []byte {
-	bytes, err := base64.StdEncoding.DecodeString(string(base64str))
+	bytes, err := base64.StdEncoding.DecodeString(base64str)
 	if err != nil {
 		panic(err)
 	}
@@ -103,6 +103,22 @@ func readBase64File(filename string) []byte {
 	}
 
 	return base64ToBytes(string(rawContents))
+}
+
+// readBase64SliceFile reads in a file by the given name and returns a slice of each line decoded as base64
+func readBase64SliceFile(filename string) [][]byte {
+	inFile, _ := os.Open(filename)
+	defer inFile.Close()
+	scanner := bufio.NewScanner(inFile)
+	scanner.Split(bufio.ScanLines)
+
+	contents := [][]byte{}
+	for scanner.Scan() {
+		rawContent := scanner.Text()
+		contents = append(contents, base64ToBytes(rawContent))
+	}
+
+	return contents
 }
 
 // readHexSliceFile reads in a file by the given name and returns a slice of each line decoded as hex

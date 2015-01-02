@@ -60,7 +60,8 @@ func TestChallenge5(t *testing.T) {
 func TestChallenge6(t *testing.T) {
 	secret := readBase64File("data/6.txt")
 
-	key, message := crackRepeatingKeyXor(secret)
+	probableKeyLengths := findProbableKeyLengths(secret, 3)
+	key, message := crackRepeatingKeyXor(secret, probableKeyLengths)
 
 	assert.Equal(t, "Terminator X: Bring the noise", key)
 	assert.Equal(t, []byte("I'm back and I'm"), message[0:16])
