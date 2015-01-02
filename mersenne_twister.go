@@ -18,7 +18,7 @@ func newMersenneTwister(seed int) *mersenneTwister {
 	mt.state = append(mt.state, seed)
 	for i := 1; i < mersenneTwisterStateLength; i++ {
 		prev := mt.state[i-1]
-		mt.state = append(mt.state, int(0x6c078965*(prev^(prev>>30))+i))
+		mt.state = append(mt.state, int(int32(0x6c078965*(prev^(prev>>30))+i))&0x7fffffff)
 	}
 
 	return mt
@@ -43,11 +43,33 @@ func (mt *mersenneTwister) next() int {
 }
 
 func temperMersenneTwisterNumber(y int) int {
-	y ^= y >> 11
-	y ^= (y << 7) & 0x9d2c5680
-	y ^= (y << 15) & 0xefc60000
-	y ^= y >> 18
+	y ^= y >> 11                // 1st step
+	y ^= (y << 7) & 0x9d2c5680  // 2nd step
+	y ^= (y << 15) & 0xefc60000 // 3rd step
+	y ^= y >> 18                // 4th step
 	return y
+}
+
+func untemperMersenneTwisterNumber(y int) int {
+	// Undo 4th step
+	y ^= y >> 18
+
+	// Undo 3rd step
+	y ^= (y << 15) & 0xefc60000
+
+	// Undo 2nd step
+	x := y
+	x = y ^ (x<<7)&0x9d2c5680
+	x = y ^ (x<<7)&0x9d2c5680
+	x = y ^ (x<<7)&0x9d2c5680
+	x = y ^ (x<<7)&0x9d2c5680
+
+	// Undo 1st step
+	z := x
+	z = x ^ (z >> 11)
+	z = x ^ (z >> 11)
+
+	return z
 }
 
 func crackMersenneTwisterSeed(mt *mersenneTwister) (int, error) {

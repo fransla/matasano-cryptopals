@@ -93,3 +93,21 @@ func TestChallenge22(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, seed, crackedSeed)
 }
+
+func TestChallenge23(t *testing.T) {
+	stateLength := 624
+	recoveredState := make([]int, stateLength)
+	twister := newMersenneTwister(rand.Intn(99999))
+
+	for i := 0; i < stateLength; i++ {
+		recoveredState[i] = untemperMersenneTwisterNumber(twister.next())
+	}
+
+	assert.Equal(t, twister.state, recoveredState)
+
+	clone := newMersenneTwister(0)
+	clone.state = recoveredState
+	for i := 0; i < 100; i++ {
+		assert.Equal(t, twister.next(), clone.next())
+	}
+}
