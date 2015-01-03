@@ -111,3 +111,12 @@ func TestChallenge23(t *testing.T) {
 		assert.Equal(t, twister.next(), clone.next())
 	}
 }
+
+func TestChallenge24(t *testing.T) {
+	key := []byte("YELLOW SUBMARINE")
+	message := []byte("HELLO, WORLD!")
+
+	// Test MT19937 stream cipher
+	assert.Equal(t, message, calculateMT19937(calculateMT19937(message, key), key))
+
+}

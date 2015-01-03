@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/aes"
-	crand "crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
@@ -419,6 +418,7 @@ func crackCBCWithPaddingOracle(cipher []byte, iv []byte) ([]byte, error) {
 //
 // AES CTR
 //
+
 func calculateAESCTR(message []byte, key []byte, nonce []byte) []byte {
 	messageLength := len(message)
 
@@ -457,6 +457,26 @@ func calculateAESCTRBlock(message []byte, key []byte, nonce []byte, counter int)
 	}
 
 	return calculateXor(message[start:end], keystream)
+}
+
+//
+// MT19937 Stream Cipher
+//
+
+func calculateMT19937(message []byte, key []byte) []byte {
+	if len(key) != 16 {
+		panic("key must be 16 bytes in length")
+	}
+
+	keyInt, _ := binary.Uvarint(key[0:16])
+	mt := newMersenneTwister(int(keyInt))
+
+	cipher := make([]byte, len(message))
+	for i := 0; i < len(cipher); i++ {
+		cipher[i] = byte(mt.next()) ^ message[i]
+	}
+
+	return cipher
 }
 
 //
@@ -522,11 +542,7 @@ func prepareCipherOracles() {
 	var err error
 
 	if unknownOracleKey == nil {
-		unknownOracleKey = make([]byte, 16)
-		_, err := crand.Read(unknownOracleKey)
-		if err != nil {
-			panic(err)
-		}
+		unknownOracleKey = randomBytes(16)
 	}
 
 	unknownECBOracleSecret, err = base64.StdEncoding.DecodeString("Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK")
@@ -545,11 +561,7 @@ func ecbCipherOracle(message []byte) []byte {
 }
 
 func ecbCipherWithPrependOrcale(message []byte) []byte {
-	randomPrefix := make([]byte, rand.Intn(128))
-	_, err := crand.Read(randomPrefix)
-	if err != nil {
-		panic(err)
-	}
+	randomPrefix := randomBytes(rand.Intn(128))
 
 	message = append(randomPrefix, message...)
 
