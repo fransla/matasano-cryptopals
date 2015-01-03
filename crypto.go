@@ -336,7 +336,7 @@ func encryptAESCBC(message []byte, iv []byte, key []byte) []byte {
 		cipher = append(cipher, cipherBlock...)
 	}
 
-	return pks7Unpad(cipher)
+	return cipher
 }
 
 func decryptAESCBC(secret []byte, iv []byte, key []byte) []byte {
