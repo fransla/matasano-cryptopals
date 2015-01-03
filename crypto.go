@@ -422,41 +422,35 @@ func crackCBCWithPaddingOracle(cipher []byte, iv []byte) ([]byte, error) {
 func calculateAESCTR(message []byte, key []byte, nonce []byte) []byte {
 	messageLength := len(message)
 
-	cipher := make([]byte, 0, messageLength)
+	cipher := make([]byte, messageLength)
 
 	blockCount := messageLength / 16
 	if (messageLength % 16) > 0 {
 		blockCount++
 	}
 
-	for i := 0; i < blockCount; i++ {
-		block := calculateAESCTRBlock(message, key, nonce, i)
-		cipher = append(cipher, block...)
+	var blockElementcounter int
+	var blockCounter int
+	var blockCounterBytes []byte
+	var keystreamBlockBytes []byte
+	for i := 0; i < messageLength; i++ {
+		blockElementcounter = i % 16
+		if blockElementcounter == 0 {
+			blockCounter = i / 16
+
+			// Get 8 little endian bytes for the 64bit counter
+			blockCounterBytes = make([]byte, 8)
+			binary.PutUvarint(blockCounterBytes, uint64(blockCounter))
+
+			// Generate the key stream for the key and nonce
+			seed := append(nonce, blockCounterBytes...)
+			keystreamBlockBytes = encryptAESCBC(seed, nonce, key)
+		}
+
+		cipher[i] = message[i] ^ keystreamBlockBytes[blockElementcounter]
 	}
 
 	return cipher
-}
-
-// calculateAESCTRBlock computes a single block of AES CTR block mode
-// Uses AES CBC for keystram generation
-func calculateAESCTRBlock(message []byte, key []byte, nonce []byte, counter int) []byte {
-	// Get 8 little endian bytes for the 64bit counter
-	counterBytes := make([]byte, 8)
-	binary.PutUvarint(counterBytes, uint64(counter))
-
-	// Generate the key stream for the key and nonce
-	keystreamSeed := append(nonce, counterBytes...)
-	keystream := encryptAESCBC(keystreamSeed, nonce, key)
-
-	// Get this block and XOR it with the keystream
-	start := counter * 16
-	end := (counter + 1) * 16
-	messageLength := len(message)
-	if end >= messageLength {
-		end = messageLength
-	}
-
-	return calculateXor(message[start:end], keystream)
 }
 
 //
