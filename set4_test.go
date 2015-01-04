@@ -7,15 +7,18 @@ import (
 )
 
 func TestChallenge25(t *testing.T) {
-	key := randomBytes(16)
+	key := []byte("YELLOW SUBMARINE")
 
-	// First test edit function
-	p1 := "YELLOW SUBMARINEYELLOW SUBMARINE"
-	p2 := "JELLOW SUBMARINEJELLOW SUBMARINE"
+	nonce := make([]byte, 16)
+	cipher := append(nonce, readBase64File("data/25.txt")...)
+	message := decryptAESECB(cipher, key)
 
-	cipher1 := encryptAESCTR([]byte(p1), key)
-	cipher2 := editAESCTR(cipher1, key, 0, []byte{'J'})
-	cipher2 = editAESCTR(cipher2, key, 16, []byte{'J'})
+	cipher = ctrEditOracleEncrypter(message)
 
-	assert.Equal(t, []byte(p2), decryptAESCTR(cipher2, key))
+	// Editing the message to all 0s will yield the keystream
+	keystream := ctrEditOracleEditor(cipher, 0, make([]byte, len(cipher[8:])))
+	nonce = cipher[:8]
+	cipher = cipher[8:]
+
+	assert.Equal(t, message, calculateXor(cipher, keystream))
 }

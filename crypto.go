@@ -467,15 +467,24 @@ func decryptAESCTR(cipher []byte, key []byte) []byte {
 }
 
 func editAESCTR(cipher []byte, key []byte, offset int, newtext []byte) []byte {
-	// Get nonce prefix from cipher
+	// Get nonce prefix from cipher, and get the cipher part itself
 	nonce := copyBytes(cipher[:8])
 
 	// Encrypt the new text
 	newCipherText := calculateAESCTRWithOffset(newtext, key, nonce, offset)
 
-	// Splice the new cipher text into the old one
-	newCipher := append(cipher[:offset+8], newCipherText...)
-	newCipher = append(newCipher, cipher[8+offset+len(newCipherText):]...)
+	newCipher := copyBytes(cipher)
+
+	// Get the part of the cipher after our edit to append to the end
+	var end []byte
+	if len(newCipherText) < len(newCipher) {
+		end = cipher[8+offset+len(newCipherText):]
+	} else {
+		end = []byte{}
+	}
+
+	newCipher = append(newCipher[:offset], newCipherText...)
+	newCipher = append(newCipher, end...)
 
 	return newCipher
 }
@@ -554,9 +563,7 @@ func validatePks7Padded(data []byte) {
 //
 // Oracles
 //
-// var unknownOracleKey []byte
-
-var unknownOracleKey = []byte("YELLOW SUBMARINA")
+var unknownOracleKey []byte
 var unknownECBOracleSecret []byte
 
 func prepareCipherOracles() {
@@ -614,4 +621,14 @@ func cbcPaddingOracle(iv []byte) []byte {
 
 func checkEncryptedCNCPadding(cipher []byte, iv []byte) bool {
 	return isPks7Padded(decryptAESCBC(cipher, iv, unknownOracleKey))
+}
+
+func ctrEditOracleEncrypter(plaintext []byte) []byte {
+	prepareCipherOracles()
+	return encryptAESCTR(plaintext, unknownOracleKey)
+}
+
+func ctrEditOracleEditor(cipher []byte, offset int, newtext []byte) []byte {
+	prepareCipherOracles()
+	return editAESCTR(cipher, unknownOracleKey, offset, newtext)
 }
