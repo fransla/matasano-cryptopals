@@ -65,6 +65,12 @@ func randomBytes(size int) []byte {
 	return bytes
 }
 
+func copyBytes(src []byte) []byte {
+	dst := make([]byte, len(src))
+	copy(dst, src)
+	return dst
+}
+
 // hammingDistance calculates the number of differing bits between two byte slices
 func hammingDistance(a []byte, b []byte) int {
 	var distance int

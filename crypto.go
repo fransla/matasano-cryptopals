@@ -422,24 +422,22 @@ func crackCBCWithPaddingOracle(cipher []byte, iv []byte) ([]byte, error) {
 func calculateAESCTR(message []byte, key []byte, nonce []byte) []byte {
 	messageLength := len(message)
 
-	cipher := make([]byte, messageLength)
+	cipher := copyBytes(message)
 
 	blockCount := messageLength / 16
 	if (messageLength % 16) > 0 {
 		blockCount++
 	}
 
-	var blockElementcounter int
-	var blockCounter int
-	var blockCounterBytes []byte
 	var keystreamBlockBytes []byte
 	for i := 0; i < messageLength; i++ {
-		blockElementcounter = i % 16
+		blockElementcounter := i % 16
+
 		if blockElementcounter == 0 {
-			blockCounter = i / 16
+			blockCounter := i / 16
 
 			// Get 8 little endian bytes for the 64bit counter
-			blockCounterBytes = make([]byte, 8)
+			blockCounterBytes := make([]byte, 8)
 			binary.PutUvarint(blockCounterBytes, uint64(blockCounter))
 
 			// Generate the key stream for the key and nonce
@@ -447,10 +445,22 @@ func calculateAESCTR(message []byte, key []byte, nonce []byte) []byte {
 			keystreamBlockBytes = encryptAESCBC(seed, nonce, key)
 		}
 
-		cipher[i] = message[i] ^ keystreamBlockBytes[blockElementcounter]
+		cipher[i] ^= keystreamBlockBytes[blockElementcounter]
 	}
 
 	return cipher
+}
+
+func encryptAESCTR(message []byte, key []byte) []byte {
+	nonce := randomBytes(8)
+	return append(nonce, calculateAESCTR(message, key, nonce)...)
+}
+
+func decryptAESCTR(cipher []byte, key []byte) []byte {
+	nonce := copyBytes(cipher[:8])
+	newCipher := copyBytes(cipher[8:])
+
+	return calculateAESCTR(newCipher, key, nonce)
 }
 
 //

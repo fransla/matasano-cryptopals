@@ -41,7 +41,9 @@ func TestChallenge18(t *testing.T) {
 
 	key = []byte("WOWMANYSECRECY!!")
 	plaintext = []byte("Hey this stream cipher stuff is p cool")
-	assert.Equal(t, plaintext, calculateAESCTR(calculateAESCTR(plaintext, key, nonce), key, nonce))
+	cipher = encryptAESCTR(plaintext, key)
+
+	assert.Equal(t, plaintext, decryptAESCTR(cipher, key))
 
 }
 
