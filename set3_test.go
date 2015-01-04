@@ -44,7 +44,6 @@ func TestChallenge18(t *testing.T) {
 	cipher = encryptAESCTR(plaintext, key)
 
 	assert.Equal(t, plaintext, decryptAESCTR(cipher, key))
-
 }
 
 func TestChallenge19(t *testing.T) {

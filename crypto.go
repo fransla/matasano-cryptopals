@@ -419,22 +419,19 @@ func crackCBCWithPaddingOracle(cipher []byte, iv []byte) ([]byte, error) {
 // AES CTR
 //
 
-func calculateAESCTR(message []byte, key []byte, nonce []byte) []byte {
-	messageLength := len(message)
-
+func calculateAESCTRWithOffset(message []byte, key []byte, nonce []byte, offset int) []byte {
 	cipher := copyBytes(message)
 
-	blockCount := messageLength / 16
-	if (messageLength % 16) > 0 {
-		blockCount++
-	}
-
+	// Iterate over each byte to encrypt
+	// For each block we'll generate a fresh keystream
+	counter := offset
 	var keystreamBlockBytes []byte
-	for i := 0; i < messageLength; i++ {
-		blockElementcounter := i % 16
+	for i := range cipher {
+		blockElementcounter := counter % 16
 
-		if blockElementcounter == 0 {
-			blockCounter := i / 16
+		// Need to generate a keystream
+		if counter == offset || blockElementcounter == 0 {
+			blockCounter := counter / 16
 
 			// Get 8 little endian bytes for the 64bit counter
 			blockCounterBytes := make([]byte, 8)
@@ -445,10 +442,16 @@ func calculateAESCTR(message []byte, key []byte, nonce []byte) []byte {
 			keystreamBlockBytes = encryptAESCBC(seed, nonce, key)
 		}
 
+		// XOR the plaintext byte with our keystream key
 		cipher[i] ^= keystreamBlockBytes[blockElementcounter]
+		counter++
 	}
 
 	return cipher
+}
+
+func calculateAESCTR(message []byte, key []byte, nonce []byte) []byte {
+	return calculateAESCTRWithOffset(message, key, nonce, 0)
 }
 
 func encryptAESCTR(message []byte, key []byte) []byte {
@@ -461,6 +464,20 @@ func decryptAESCTR(cipher []byte, key []byte) []byte {
 	newCipher := copyBytes(cipher[8:])
 
 	return calculateAESCTR(newCipher, key, nonce)
+}
+
+func editAESCTR(cipher []byte, key []byte, offset int, newtext []byte) []byte {
+	// Get nonce prefix from cipher
+	nonce := copyBytes(cipher[:8])
+
+	// Encrypt the new text
+	newCipherText := calculateAESCTRWithOffset(newtext, key, nonce, offset)
+
+	// Splice the new cipher text into the old one
+	newCipher := append(cipher[:offset+8], newCipherText...)
+	newCipher = append(newCipher, cipher[8+offset+len(newCipherText):]...)
+
+	return newCipher
 }
 
 //
