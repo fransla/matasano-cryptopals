@@ -22,3 +22,19 @@ func TestChallenge25(t *testing.T) {
 
 	assert.Equal(t, message, calculateXor(cipher, keystream))
 }
+
+func TestChallenge26(t *testing.T) {
+	// Create a valid user profile and encrypt it
+	message := []byte(prepareUserData("1234567890123456-admin-true"))
+	key := []byte("YELLOW SUBMARINE")
+	cipher := encryptAESCTR(message, key)
+
+	// Change hyphens to characters that are sanitized out of the prepareUserData input
+	cipher[56] ^= '-' ^ ';'
+	cipher[62] ^= '-' ^ '='
+
+	// Decrypt it and we are now and admin
+	poisonedProfile := decryptAESCTR(cipher, key)
+
+	assert.Contains(t, string(poisonedProfile), ";admin=true;")
+}
