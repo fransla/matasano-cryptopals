@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,4 +38,18 @@ func TestChallenge26(t *testing.T) {
 	poisonedProfile := decryptAESCTR(cipher, key)
 
 	assert.Contains(t, string(poisonedProfile), ";admin=true;")
+}
+
+func TestChallenge27(t *testing.T) {
+}
+
+func TestChallenge28(t *testing.T) {
+	key := []byte("YELLOW SUBMARINE")
+	message := []byte("This is a secret message")
+
+	// Create SHA1(key || message) digest
+	digest := hex.EncodeToString(Sha1KeyedMAC(key, message))
+
+	// Test value calculated from Ruby for comparison
+	assert.Equal(t, "2681227a67676278dff5c3b5ddc3851fc565ec41", digest)
 }
