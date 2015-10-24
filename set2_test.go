@@ -60,7 +60,7 @@ func TestChallenge12(t *testing.T) {
 
 	// Crack it
 	message := crackECB(ecbCipherOracle)
-	assert.Equal(t, message, "Rollin' in my 5.0\nWith my rag-top down so my hair can blow\nThe girlies on standby waving just to say hi\nDid you stop? No, I just drove by\n")
+	assert.Equal(t, []byte("Rollin' in my 5.0\nWith my rag-top down so my hair can blow\nThe girlies on standby waving just to say hi\nDid you stop? No, I just drove by\n"), message)
 }
 
 func TestChallenge13(t *testing.T) {

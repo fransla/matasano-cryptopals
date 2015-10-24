@@ -27,8 +27,8 @@ func TestChallenge3(t *testing.T) {
 
 	key, message := crackSingleByteXor(secret)
 
-	assert.Equal(t, 'X', key)
-	assert.Equal(t, "Cooking MC's like a pound of bacon", message)
+	assert.Equal(t, byte('X'), key)
+	assert.Equal(t, []byte("Cooking MC's like a pound of bacon"), message)
 }
 
 func TestChallenge4(t *testing.T) {
@@ -63,7 +63,7 @@ func TestChallenge6(t *testing.T) {
 	probableKeyLengths := findProbableKeyLengths(secret, 3)
 	key, message := crackRepeatingKeyXor(secret, probableKeyLengths)
 
-	assert.Equal(t, "Terminator X: Bring the noise", key)
+	assert.Equal(t, []byte("Terminator X: Bring the noise"), key)
 	assert.Equal(t, []byte("I'm back and I'm"), message[0:16])
 }
 
