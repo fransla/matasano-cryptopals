@@ -216,3 +216,36 @@ func encryptedProfileFor(emailAddress string) []byte {
 func prepareUserData(userData string) string {
 	return "comment1=cooking%20MCs;userdata=" + url.QueryEscape(userData) + ";comment2=%20like%20a%20pound%20of%20bacon"
 }
+
+// sha1Pad should correctly pad the given message the same as the Sha1 library
+func sha1Pad(message []byte) []byte {
+	len := len(message)
+	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+	var tmp [64]byte
+	tmp[0] = 0x80
+	if len%64 < 56 {
+		message = append(message, tmp[0:56-len%64]...)
+	} else {
+		message = append(message, tmp[0:64+56-len%64]...)
+	}
+
+	len <<= 3
+	for i := uint(0); i < 8; i++ {
+		tmp[i] = byte(len >> (56 - 8*i))
+	}
+
+	message = append(message, tmp[0:8]...)
+
+	return message
+}
+
+func sha1HashToRegisters(hash []byte) [5]uint32 {
+	regs := [5]uint32{}
+	for i := range regs {
+		regs[i] = (uint32(hash[i*4]) << 24) |
+			(uint32(hash[(i*4)+1]) << 16) |
+			(uint32(hash[(i*4)+2]) << 8) |
+			(uint32(hash[(i*4)+3]))
+	}
+	return regs
+}

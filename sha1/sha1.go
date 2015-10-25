@@ -44,6 +44,8 @@ type digest struct {
 	x   [chunk]byte
 	nx  int
 	len uint64
+
+	FixedLength uint64
 }
 
 func (d *digest) Reset() {
@@ -70,6 +72,11 @@ func (d *digest) BlockSize() int { return BlockSize }
 func (d *digest) Write(p []byte) (nn int, err error) {
 	nn = len(p)
 	d.len += uint64(nn)
+
+	if d.FixedLength != 0 {
+		d.len = d.FixedLength
+	}
+
 	if d.nx > 0 {
 		n := copy(d.x[d.nx:], p)
 		d.nx += n
